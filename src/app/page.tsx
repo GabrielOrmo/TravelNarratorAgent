@@ -59,7 +59,7 @@ export default function HomePage() {
                 onGenerationComplete={handleGenerationComplete}
                 onGenerationError={handleGenerationError}
                 isGenerating={isGenerating}
-                currentLanguage={language} // Pass current language
+                currentLanguage={language} 
               />
             </div>
             <div className="w-full max-w-lg mx-auto lg:max-w-none lg:mx-0">
@@ -71,6 +71,10 @@ export default function HomePage() {
                   audioDataUri={narrativeResult.audioDataUri}
                   locationDescription={narrativeResult.locationDescription}
                   outputLanguage={narrativeResult.outputLanguage} 
+                  informationStyle={narrativeResult.informationStyle} // Pass down
+                  userId={narrativeResult.userId} // Pass down
+                  latitude={narrativeResult.latitude} // Pass down
+                  longitude={narrativeResult.longitude} // Pass down
                 />
               ) : (
                 <PlaceholderCard />

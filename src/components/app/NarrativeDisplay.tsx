@@ -16,12 +16,25 @@ import { useTranslations } from "@/lib/translations";
 
 interface NarrativeDisplayProps {
   narrativeText: string;
-  audioDataUri: string; // For main narrative, this might be empty if coming from webhook
+  audioDataUri: string; 
   locationDescription: string;
   outputLanguage: string;
+  informationStyle: string; // Added
+  userId: string; // Added
+  latitude?: number | null; // Added
+  longitude?: number | null; // Added
 }
 
-export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescription, outputLanguage }: NarrativeDisplayProps) {
+export function NarrativeDisplay({ 
+  narrativeText, 
+  audioDataUri, 
+  locationDescription, 
+  outputLanguage,
+  informationStyle, // Destructure
+  userId, // Destructure
+  latitude, // Destructure
+  longitude // Destructure
+}: NarrativeDisplayProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const followUpAudioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
@@ -38,14 +51,14 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
 
   useEffect(() => {
     if (audioDataUri && audioRef.current) {
-      audioRef.current.src = audioDataUri; // Set src directly
+      audioRef.current.src = audioDataUri; 
       audioRef.current.load();
     }
   }, [audioDataUri]);
 
   useEffect(() => {
     if (followUpResult?.answerAudioDataUri && followUpAudioRef.current) {
-      followUpAudioRef.current.src = followUpResult.answerAudioDataUri; // Set src directly
+      followUpAudioRef.current.src = followUpResult.answerAudioDataUri; 
       followUpAudioRef.current.load();
     }
   }, [followUpResult?.answerAudioDataUri]);
@@ -144,6 +157,15 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
       }
       return;
     }
+    if (!userId) {
+       toast({
+        variant: "destructive",
+        title: "User ID Missing",
+        description: "Cannot process follow-up without a User ID.",
+      });
+      return;
+    }
+
 
     setIsGeneratingFollowUp(true);
     setFollowUpResult(null);
@@ -152,7 +174,11 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
       currentNarrativeText: narrativeText,
       locationDescription: locationDescription,
       userQuestion: question,
-      language: currentGlobalLanguage,
+      language: currentGlobalLanguage, // This is the globally selected language
+      informationStyle: informationStyle, // Pass through
+      userId: userId, // Pass through
+      latitude: latitude, // Pass through
+      longitude: longitude, // Pass through
     };
 
     const result = await generateFollowUpAnswerAction(actionInput);
@@ -261,7 +287,7 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
               </div>
                <Button 
                 onClick={() => handleFollowUpSubmit(transcribedQuestion)} 
-                disabled={isGeneratingFollowUp || isRecording || !transcribedQuestion.trim()}
+                disabled={isGeneratingFollowUp || isRecording || !transcribedQuestion.trim() || !userId}
                 className="w-full"
               >
                 {isGeneratingFollowUp ? t.gettingAnswerButton : t.submitQuestionButton}
