@@ -4,7 +4,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Wand2, Info, Newspaper, Castle, HelpCircle, Upload, Camera, Image as ImageIcon, AlertTriangle, Search, MapPin } from "lucide-react";
+import { Wand2, Info, Newspaper, Castle, HelpCircle, Upload, Camera, Image as ImageIcon, AlertTriangle, Search, MapPin, Languages } from "lucide-react";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 
@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import type { TravelNarrativeResult } from "@/app/actions";
 import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
@@ -33,6 +34,18 @@ const informationStyles = [
   { id: "Curious", label: "Curious", description: "Uncover interesting tidbits and unusual details.", icon: HelpCircle },
   { id: "Legends", label: "Legends", description: "Explore myths, folklore, and captivating stories.", icon: Newspaper },
 ] as const;
+
+const outputLanguages = [
+  { value: "en", label: "English" },
+  { value: "es", label: "Español (Spanish)" },
+  { value: "fr", label: "Français (French)" },
+  { value: "de", label: "Deutsch (German)" },
+  { value: "it", label: "Italiano (Italian)" },
+  { value: "pt", label: "Português (Portuguese)" },
+  { value: "ja", label: "日本語 (Japanese)" },
+  { value: "ko", label: "한국어 (Korean)" },
+  { value: "zh-CN", label: "简体中文 (Simplified Chinese)" },
+];
 
 interface NarratorFormProps {
   onGenerationStart: () => void;
@@ -61,6 +74,7 @@ export function NarratorForm({
       imageDataUri: undefined,
       locationQuery: undefined,
       informationStyle: "Curious",
+      outputLanguage: "en", // Default language
     },
   });
 
@@ -72,7 +86,7 @@ export function NarratorForm({
         const dataUri = reader.result as string;
         setImagePreview(dataUri);
         form.setValue("imageDataUri", dataUri, { shouldValidate: true });
-        form.setValue("locationQuery", undefined, { shouldValidate: true }); // Clear text query if image is uploaded
+        form.setValue("locationQuery", undefined, { shouldValidate: true }); 
       };
       reader.readAsDataURL(file);
     }
@@ -129,7 +143,7 @@ export function NarratorForm({
         const dataUri = canvas.toDataURL('image/jpeg');
         setImagePreview(dataUri);
         form.setValue("imageDataUri", dataUri, { shouldValidate: true });
-        form.setValue("locationQuery", undefined, { shouldValidate: true }); // Clear text query if image is captured
+        form.setValue("locationQuery", undefined, { shouldValidate: true }); 
 
         if (videoRef.current?.srcObject) {
             const stream = videoRef.current.srcObject as MediaStream;
@@ -140,8 +154,6 @@ export function NarratorForm({
   };
 
   async function onSubmit(data: NarratorFormValues) {
-    // Validation ensures at least one is present.
-    // If user somehow bypassed client validation, server action will also check.
     onGenerationStart();
     try {
       const { generateTravelNarrativeAction } = await import("@/app/actions");
@@ -173,7 +185,7 @@ export function NarratorForm({
           <span>Describe Your Destination</span>
         </CardTitle>
         <CardDescription>
-          Enter a location name, or upload/capture an image. Then, choose your narration style.
+          Enter a location name or use an image. Then, choose your narration style and language.
         </CardDescription>
       </CardHeader>
       <Form {...form}>
@@ -190,14 +202,14 @@ export function NarratorForm({
                   </FormLabel>
                   <FormControl>
                     <Input
-                      type="text" // Explicitly set type
+                      type="text"
                       placeholder="e.g., Eiffel Tower, Paris"
                       {...field}
                       value={field.value ?? ""}
                       onChange={(e) => {
                         field.onChange(e.target.value);
                         if (e.target.value && imagePreview) {
-                          clearImage(); // Clear image if text is typed
+                          clearImage(); 
                         }
                       }}
                     />
@@ -281,7 +293,7 @@ export function NarratorForm({
                       </Button>
                     </div>
                   )}
-                  {/* FormMessage for imageDataUri is handled by the global form message via refine path for now */}
+                  <FormMessage /> 
                 </FormItem>
               )}
             />
@@ -320,6 +332,38 @@ export function NarratorForm({
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="outputLanguage"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <Languages className="h-5 w-5" />
+                    Output Language
+                  </FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a language" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {outputLanguages.map((lang) => (
+                        <SelectItem key={lang.value} value={lang.value}>
+                          {lang.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Choose the language for the generated narrative.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
           </CardContent>
           <CardFooter>
             <Button type="submit" disabled={isGenerating || !form.formState.isValid} className="w-full">
@@ -332,3 +376,4 @@ export function NarratorForm({
     </Card>
   );
 }
+

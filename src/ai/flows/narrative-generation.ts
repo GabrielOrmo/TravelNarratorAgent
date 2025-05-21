@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -20,6 +21,7 @@ const GenerateNarrativeInputSchema = z.object({
     .describe(
       'The preferred information style (historical, curious, legends).' + ')'
     ),
+  outputLanguage: z.string().describe('The desired output language for the narrative (e.g., "en", "es", "fr").'),
 });
 export type GenerateNarrativeInput = z.infer<typeof GenerateNarrativeInputSchema>;
 
@@ -39,6 +41,7 @@ const narrativePrompt = ai.definePrompt({
   prompt: `You are a tour guide specializing in narrating stories about different locations.
 
   Based on the location description and the user's preferred information style, generate a spoken narrative about the location.
+  The narrative should be in {{outputLanguage}}.
 
   Location Description: {{{locationDescription}}}
   Information Style: {{{informationStyle}}}
@@ -56,3 +59,4 @@ const generateNarrativeFlow = ai.defineFlow(
     return output!;
   }
 );
+

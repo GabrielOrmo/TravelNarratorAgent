@@ -9,7 +9,7 @@ import { NarrativeDisplay } from "@/components/app/NarrativeDisplay";
 import { LoadingSpinner } from "@/components/app/LoadingSpinner";
 import { PlaceholderCard } from "@/components/app/PlaceholderCard";
 import { useToast } from "@/hooks/use-toast";
-import type { TravelNarrativeResult } from "./actions"; // This type was extended
+import type { TravelNarrativeResult } from "./actions"; 
 
 export default function HomePage() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -28,7 +28,7 @@ export default function HomePage() {
 
   const handleGenerationComplete = (data: TravelNarrativeResult) => {
     setIsGenerating(false);
-    setNarrativeResult(data);
+    setNarrativeResult(data); // data now includes outputLanguage
     toast({
       title: "Narrative Generated!",
       description: `Your personalized tour for ${data.locationDescription || 'the location'} is ready.`,
@@ -66,6 +66,7 @@ export default function HomePage() {
                   narrativeText={narrativeResult.narrativeText}
                   audioDataUri={narrativeResult.audioDataUri}
                   locationDescription={narrativeResult.locationDescription}
+                  outputLanguage={narrativeResult.outputLanguage} // Pass outputLanguage
                 />
               ) : (
                 <PlaceholderCard />
@@ -80,3 +81,4 @@ export default function HomePage() {
     </div>
   );
 }
+

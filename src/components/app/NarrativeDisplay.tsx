@@ -18,9 +18,10 @@ interface NarrativeDisplayProps {
   narrativeText: string;
   audioDataUri: string;
   locationDescription: string; 
+  outputLanguage: string; // Added outputLanguage
 }
 
-export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescription }: NarrativeDisplayProps) {
+export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescription, outputLanguage }: NarrativeDisplayProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const followUpAudioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
@@ -51,7 +52,7 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
         const recognitionInstance = new SpeechRecognitionAPI();
         recognitionInstance.continuous = false;
         recognitionInstance.interimResults = false;
-        recognitionInstance.lang = 'en-US';
+        recognitionInstance.lang = outputLanguage || 'en-US'; // Use selected language for speech recognition if possible
 
         recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
           const transcript = event.results[event.results.length -1][0].transcript.trim();
@@ -89,7 +90,7 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
     } else {
        setMicPermissionError("Speech recognition is not available or not supported by your browser.");
     }
-  }, [toast]);
+  }, [toast, outputLanguage]);
 
   const handleToggleRecording = () => {
     if (!speechRecognition) {
@@ -105,10 +106,14 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
       speechRecognition.stop();
       setIsRecording(false);
     } else {
-      setMicPermissionError(null); // Clear previous permission errors
-      setTranscribedQuestion(""); // Clear previous question
-      setFollowUpResult(null); // Clear previous follow-up
+      setMicPermissionError(null); 
+      setTranscribedQuestion(""); 
+      setFollowUpResult(null); 
       try {
+        // Update language for speech recognition instance if it changed
+        if (speechRecognition.lang !== (outputLanguage || 'en-US')) {
+            speechRecognition.lang = outputLanguage || 'en-US';
+        }
         speechRecognition.start();
         setIsRecording(true);
       } catch (e: any) {
@@ -142,6 +147,7 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
       currentNarrativeText: narrativeText,
       locationDescription: locationDescription,
       userQuestion: question,
+      outputLanguage: outputLanguage, // Pass outputLanguage
     });
 
     setIsGeneratingFollowUp(false);
@@ -290,3 +296,4 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
     </Card>
   );
 }
+

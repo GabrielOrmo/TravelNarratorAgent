@@ -16,6 +16,7 @@ export interface TravelNarrativeResult {
   narrativeText: string;
   audioDataUri: string;
   locationDescription: string;
+  outputLanguage: string; // Added outputLanguage
 }
 
 export async function generateTravelNarrativeAction(
@@ -30,7 +31,7 @@ export async function generateTravelNarrativeAction(
       return { error: "Invalid input: " + errorMessages };
     }
 
-    const { imageDataUri, locationQuery, informationStyle } = validation.data;
+    const { imageDataUri, locationQuery, informationStyle, outputLanguage } = validation.data;
     let identifiedLocationDescription: string;
 
     if (imageDataUri) {
@@ -51,12 +52,16 @@ export async function generateTravelNarrativeAction(
     const narrativeResult: GenerateNarrativeOutput = await generateNarrative({
       locationDescription: identifiedLocationDescription,
       informationStyle,
+      outputLanguage, // Pass outputLanguage
     });
 
     if (!narrativeResult.narrativeText) {
       return { error: "Failed to generate narrative text." };
     }
     
+    // For Text-to-Speech, a general "default" voice is often multilingual or adapts.
+    // Specific voice selection based on language is complex and often TTS provider specific.
+    // We'll keep it simple here.
     const audioResult: NarrationToAudioOutput = await narrationToAudio({
       narratedText: narrativeResult.narrativeText,
       voice: "default", 
@@ -70,6 +75,7 @@ export async function generateTravelNarrativeAction(
       narrativeText: narrativeResult.narrativeText,
       audioDataUri: audioResult.audioDataUri,
       locationDescription: identifiedLocationDescription,
+      outputLanguage, // Include outputLanguage in the result
     };
   } catch (error) {
     console.error("Error in generateTravelNarrativeAction:", error);
@@ -85,6 +91,7 @@ export interface FollowUpInput {
   currentNarrativeText: string;
   locationDescription: string;
   userQuestion: string;
+  outputLanguage: string; // Added outputLanguage
 }
 
 export interface FollowUpResult {
@@ -104,6 +111,7 @@ export async function generateFollowUpAnswerAction(
       currentNarrativeText: input.currentNarrativeText,
       locationDescription: input.locationDescription,
       userQuestion: input.userQuestion,
+      outputLanguage: input.outputLanguage, // Pass outputLanguage
     });
 
     if (!followUpAnswerResult.answerText) {
@@ -132,3 +140,4 @@ export async function generateFollowUpAnswerAction(
     return { error: errorMessage };
   }
 }
+

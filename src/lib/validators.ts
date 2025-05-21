@@ -10,6 +10,7 @@ export const narratorFormSchema = z.object({
   informationStyle: z.enum(["Historical", "Curious", "Legends"], {
     required_error: "You need to select an information style.",
   }),
+  outputLanguage: z.string().min(2, "Please select an output language.").default("en"),
 }).refine(data => {
   return !!data.imageDataUri || !!data.locationQuery;
 }, {
@@ -18,3 +19,4 @@ export const narratorFormSchema = z.object({
 });
 
 export type NarratorFormValues = z.infer<typeof narratorFormSchema>;
+

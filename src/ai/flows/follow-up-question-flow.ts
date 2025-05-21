@@ -15,6 +15,7 @@ const GenerateFollowUpInputSchema = z.object({
   currentNarrativeText: z.string().describe('The text of the narrative that was just presented to the user.'),
   locationDescription: z.string().describe('The description of the location related to the narrative.'),
   userQuestion: z.string().describe('The follow-up question asked by the user.'),
+  outputLanguage: z.string().describe('The language in which the answer should be provided (e.g., "en", "es", "fr").'),
 });
 export type GenerateFollowUpInput = z.infer<typeof GenerateFollowUpInputSchema>;
 
@@ -38,7 +39,8 @@ The user was just told the following about "{{locationDescription}}":
 The user now has a follow-up question: "{{userQuestion}}"
 
 Please answer their question concisely and accurately, based on the information from the narrative and the location context.
-If the question cannot be answered from the given context or is unrelated, politely state that you don't have that information or that it's outside the scope of the current topic.
+The answer should be in {{outputLanguage}}.
+If the question cannot be answered from the given context or is unrelated, politely state that you don't have that information or that it's outside the scope of the current topic (still in {{outputLanguage}}).
 Focus on being helpful and staying on topic with the original narrative.
 Generate only the answer text.`,
 });
@@ -57,3 +59,4 @@ const generateFollowUpAnswerFlow = ai.defineFlow(
     return output;
   }
 );
+
