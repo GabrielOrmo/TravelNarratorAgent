@@ -6,6 +6,7 @@ import type { GenerateImageDescriptionOutput } from "@/ai/flows/image-to-descrip
 import { narrationToAudio } from "@/ai/flows/narration-to-audio"; 
 import type { NarrationToAudioOutput } from "@/ai/flows/narration-to-audio";
 import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
+import { Client } from "@googlemaps/google-maps-services-js";
 
 export interface TravelNarrativeResult {
   narrativeText: string;
@@ -150,7 +151,6 @@ export async function generateFollowUpAnswerAction(
         'X-Latitude': input.latitude?.toString() || '',
         'X-Longitude': input.longitude?.toString() || '',
         'Follow-Up': "true", 
-        // 'X-Current-Narrative': input.currentNarrativeText, // Removed as per user request
         'X-Location-Context': input.locationDescription, 
       };
       
@@ -173,7 +173,6 @@ export async function generateFollowUpAnswerAction(
       return { error: `Error contacting the agent for follow-up: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}` };
     }
 
-    // Generate audio for the webhook's text response
     const audioResult: NarrationToAudioOutput = await narrationToAudio({
       narratedText: answerTextFromWebhook,
       voice: "default", 
@@ -197,3 +196,51 @@ export async function generateFollowUpAnswerAction(
   }
 }
 
+
+export interface PlaceSuggestion {
+  description: string;
+  place_id: string;
+}
+
+export async function getPlaceAutocompleteSuggestions(
+  query: string
+): Promise<PlaceSuggestion[] | { error: string }> {
+  if (!process.env.GOOGLE_MAPS_API_KEY) {
+    console.error("Google Maps API key is not configured.");
+    return { error: "Autocomplete service is not configured." };
+  }
+  if (!query || query.trim().length < 2) {
+    return []; // Don't search for very short queries
+  }
+
+  const client = new Client({});
+  try {
+    const response = await client.placeAutocomplete({
+      params: {
+        input: query,
+        key: process.env.GOOGLE_MAPS_API_KEY,
+        // You can add more parameters here, like 'types', 'components' for filtering
+      },
+      timeout: 5000, // milliseconds
+    });
+
+    if (response.data.status === "OK") {
+      return response.data.predictions.map((prediction) => ({
+        description: prediction.description,
+        place_id: prediction.place_id,
+      }));
+    } else if (response.data.status === "ZERO_RESULTS") {
+      return [];
+    } else {
+      console.error(
+        "Google Places Autocomplete API Error:",
+        response.data.status,
+        response.data.error_message
+      );
+      return { error: `Autocomplete failed: ${response.data.status}` };
+    }
+  } catch (error) {
+    console.error("Error calling Google Places Autocomplete API:", error);
+    return { error: "Could not fetch place suggestions." };
+  }
+}

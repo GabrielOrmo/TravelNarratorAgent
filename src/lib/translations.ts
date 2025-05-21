@@ -4,8 +4,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 type TranslationKeys = {
   // Header / Hero
-  appSubtitle: string; // Tagline, now used in Hero
-  heroImageAlt: string; // Alt text for Hero Image
+  appSubtitle: string; 
+  heroImageAlt: string; 
   // Page
   footerCopyright: string;
   toastNarrativeGeneratedTitle: string;
@@ -17,6 +17,8 @@ type TranslationKeys = {
   locationNameLabel: string;
   locationNamePlaceholder: string;
   locationNameDescription: string;
+  autocompleteLoading: string;
+  autocompleteNoResults: string;
   useCurrentLocationButton: string;
   fetchingLocationButton: string;
   geolocationNotSupported: string;
@@ -104,6 +106,8 @@ const translationsData: Record<Locale, TranslationKeys> = {
     locationNameLabel: 'Location Name or Description',
     locationNamePlaceholder: 'e.g., Eiffel Tower, Paris',
     locationNameDescription: 'Type the name or a brief description of the location.',
+    autocompleteLoading: 'Loading suggestions...',
+    autocompleteNoResults: 'No results found.',
     useCurrentLocationButton: 'Use My Current Location',
     fetchingLocationButton: 'Fetching Location...',
     geolocationNotSupported: 'Geolocation is not supported by your browser.',
@@ -186,6 +190,8 @@ const translationsData: Record<Locale, TranslationKeys> = {
     locationNameLabel: 'Nombre o Descripción de la Ubicación',
     locationNamePlaceholder: 'Ej: Torre Eiffel, París',
     locationNameDescription: 'Escribe el nombre o una breve descripción de la ubicación.',
+    autocompleteLoading: 'Cargando sugerencias...',
+    autocompleteNoResults: 'No se encontraron resultados.',
     useCurrentLocationButton: 'Usar Mi Ubicación Actual',
     fetchingLocationButton: 'Obteniendo Ubicación...',
     geolocationNotSupported: 'La geolocalización no es compatible con tu navegador.',
@@ -268,6 +274,8 @@ const translationsData: Record<Locale, TranslationKeys> = {
     locationNameLabel: 'Nom ou Description du Lieu',
     locationNamePlaceholder: 'Ex: Tour Eiffel, Paris',
     locationNameDescription: 'Tapez le nom ou une brève description du lieu.',
+    autocompleteLoading: 'Chargement des suggestions...',
+    autocompleteNoResults: 'Aucun résultat trouvé.',
     useCurrentLocationButton: 'Utiliser Ma Position Actuelle',
     fetchingLocationButton: 'Récupération Position...',
     geolocationNotSupported: 'La géolocalisation n’est pas supportée par votre navigateur.',

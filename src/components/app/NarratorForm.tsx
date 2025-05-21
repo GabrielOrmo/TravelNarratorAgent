@@ -3,7 +3,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Wand2, Castle, HelpCircle, Newspaper, Upload, Camera, Image as ImageIcon, AlertTriangle, Search, MapPin, LocateFixed } from "lucide-react";
+import { Wand2, Castle, HelpCircle, Newspaper, Upload, Camera, Image as ImageIcon, AlertTriangle, Search, MapPin, LocateFixed, Loader2 } from "lucide-react";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import NextImage from "next/image"; 
 
@@ -24,15 +24,9 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import type { TravelNarrativeResult } from "@/app/actions";
+import type { TravelNarrativeResult, PlaceSuggestion } from "@/app/actions";
+import { getPlaceAutocompleteSuggestions } from "@/app/actions"; // Import the new action
 import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
 import { useLanguage, type Locale } from "@/contexts/LanguageContext";
 import { useTranslations } from "@/lib/translations";
@@ -70,6 +64,13 @@ export function NarratorForm({
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
 
+  // Autocomplete state
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const suggestionsContainerRef = useRef<HTMLDivElement>(null);
+
 
   const informationStyles = [
     { id: "Historical", label: t.styleHistoricalLabel, description: t.styleHistoricalDescription, icon: Castle },
@@ -84,11 +85,8 @@ export function NarratorForm({
       imageDataUri: undefined,
       locationQuery: undefined,
       informationStyle: "Curious",
-      // outputLanguage removed from defaultValues
     },
   });
-
-  // useEffect for setting outputLanguage based on currentLanguage is removed.
 
   useEffect(() => {
     setIsMounted(true);
@@ -99,7 +97,6 @@ export function NarratorForm({
       localStorage.setItem(USER_ID_STORAGE_KEY, storedUserId);
     }
     setUserId(storedUserId);
-
   }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -111,6 +108,7 @@ export function NarratorForm({
         setImagePreview(dataUri);
         form.setValue("imageDataUri", dataUri, { shouldValidate: true });
         form.setValue("locationQuery", undefined, { shouldValidate: true }); 
+        setShowSuggestions(false);
       };
       reader.readAsDataURL(file);
     }
@@ -168,6 +166,7 @@ export function NarratorForm({
         setImagePreview(dataUri);
         form.setValue("imageDataUri", dataUri, { shouldValidate: true });
         form.setValue("locationQuery", undefined, { shouldValidate: true }); 
+        setShowSuggestions(false);
 
         if (videoRef.current?.srcObject) {
             const stream = videoRef.current.srcObject as MediaStream;
@@ -223,10 +222,10 @@ export function NarratorForm({
       onGenerationError("User ID not available. Please try again.");
       return;
     }
+    setShowSuggestions(false);
     onGenerationStart();
     try {
-      const { generateTravelNarrativeAction } = await import("@/app/actions");
-      // currentLanguage (from context) is passed instead of data.outputLanguage
+      // const { generateTravelNarrativeAction } = await import("@/app/actions"); // Already globally available
       const result = await generateTravelNarrativeAction(data, currentLanguage, userId, latitude, longitude);
       if ("error" in result) {
         onGenerationError(result.error);
@@ -247,6 +246,62 @@ export function NarratorForm({
           startCamera();
      }
   }
+
+  const handleLocationQueryChange = async (query: string) => {
+    form.setValue("locationQuery", query, { shouldValidate: true });
+    if (query && imagePreview) {
+        clearImage(); // Clear image if user starts typing a query
+    }
+
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    if (query.trim().length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setIsFetchingSuggestions(false);
+      return;
+    }
+    
+    setIsFetchingSuggestions(true);
+    setShowSuggestions(true); // Show loading indicator
+
+    debounceTimeoutRef.current = setTimeout(async () => {
+      const result = await getPlaceAutocompleteSuggestions(query);
+      setIsFetchingSuggestions(false);
+      if ("error" in result) {
+        // console.error("Autocomplete error:", result.error);
+        toast({ variant: "destructive", title: "Autocomplete Error", description: result.error });
+        setSuggestions([]);
+      } else {
+        setSuggestions(result);
+      }
+      // Keep suggestions visible if there are results or if still fetching (handled by isFetchingSuggestions)
+      setShowSuggestions(result && !("error" in result) && result.length > 0);
+    }, 500); // 500ms debounce
+  };
+
+  const handleSuggestionClick = (suggestion: PlaceSuggestion) => {
+    form.setValue("locationQuery", suggestion.description, { shouldValidate: true });
+    setSuggestions([]);
+    setShowSuggestions(false);
+    // Optionally, you could store suggestion.place_id if needed for more detailed lookups
+  };
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionsContainerRef.current && !suggestionsContainerRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
 
   if (!isMounted) {
     return (
@@ -282,7 +337,6 @@ export function NarratorForm({
             <Skeleton className="h-16 w-full rounded-md border p-3 mt-2" />
             <Skeleton className="h-16 w-full rounded-md border p-3 mt-2" />
           </div>
-           {/* Skeleton for output language selector removed */}
         </CardContent>
         <CardFooter>
           <Skeleton className="h-10 w-full" />
@@ -309,7 +363,7 @@ export function NarratorForm({
               control={form.control}
               name="locationQuery"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="relative">
                   <FormLabel className="flex items-center gap-2">
                     <Search className="h-5 w-5" />
                     {t.locationNameLabel}
@@ -321,13 +375,45 @@ export function NarratorForm({
                       {...field}
                       value={field.value ?? ""}
                       onChange={(e) => {
-                        field.onChange(e.target.value);
-                        if (e.target.value && imagePreview) {
-                          clearImage(); 
+                        // field.onChange(e.target.value); // Let handleLocationQueryChange manage this
+                        handleLocationQueryChange(e.target.value);
+                      }}
+                      onFocus={() => {
+                        if (field.value && suggestions.length > 0) {
+                           setShowSuggestions(true);
                         }
                       }}
+                      // onBlur={() => setTimeout(() => setShowSuggestions(false), 150)} // Delay to allow click on suggestions
+                      autoComplete="off"
                     />
                   </FormControl>
+                  {showSuggestions && (
+                    <div 
+                      ref={suggestionsContainerRef}
+                      className="absolute z-10 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-60 overflow-y-auto"
+                    >
+                      {isFetchingSuggestions && suggestions.length === 0 && (
+                        <div className="p-3 text-sm text-muted-foreground flex items-center justify-center">
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {t.autocompleteLoading}
+                        </div>
+                      )}
+                      {!isFetchingSuggestions && suggestions.length === 0 && form.getValues("locationQuery") && form.getValues("locationQuery")!.length >=2 && (
+                         <div className="p-3 text-sm text-muted-foreground">{t.autocompleteNoResults}</div>
+                      )}
+                      {suggestions.map((suggestion) => (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          key={suggestion.place_id}
+                          onClick={() => handleSuggestionClick(suggestion)}
+                          className="w-full justify-start text-left px-3 py-2 h-auto"
+                        >
+                          {suggestion.description}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                   <FormDescription>
                     {t.locationNameDescription}
                   </FormDescription>
@@ -464,9 +550,6 @@ export function NarratorForm({
                 </FormItem>
               )}
             />
-            
-            {/* Output Language Selector FormField removed */}
-
           </CardContent>
           <CardFooter>
             <Button type="submit" disabled={isGenerating || !form.formState.isValid || !userId} className="w-full">
@@ -479,4 +562,3 @@ export function NarratorForm({
     </Card>
   );
 }
-
