@@ -24,6 +24,13 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import type { TravelNarrativeResult } from "@/app/actions";
 import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
@@ -77,8 +84,13 @@ export function NarratorForm({
       imageDataUri: undefined,
       locationQuery: undefined,
       informationStyle: "Curious",
+      outputLanguage: currentLanguage || "en",
     },
   });
+
+  useEffect(() => {
+    form.setValue("outputLanguage", currentLanguage);
+  }, [currentLanguage, form]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -216,6 +228,7 @@ export function NarratorForm({
     onGenerationStart();
     try {
       const { generateTravelNarrativeAction } = await import("@/app/actions");
+      // Pass currentLanguage (from context) instead of data.outputLanguage (from form)
       const result = await generateTravelNarrativeAction(data, currentLanguage, userId, latitude, longitude);
       if ("error" in result) {
         onGenerationError(result.error);
@@ -500,3 +513,4 @@ export function NarratorForm({
     </Card>
   );
 }
+
