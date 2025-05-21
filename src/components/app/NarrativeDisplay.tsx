@@ -19,10 +19,10 @@ interface NarrativeDisplayProps {
   audioDataUri: string; 
   locationDescription: string;
   outputLanguage: string;
-  informationStyle: string; // Added
-  userId: string; // Added
-  latitude?: number | null; // Added
-  longitude?: number | null; // Added
+  informationStyle: string;
+  userId: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export function NarrativeDisplay({ 
@@ -30,10 +30,10 @@ export function NarrativeDisplay({
   audioDataUri, 
   locationDescription, 
   outputLanguage,
-  informationStyle, // Destructure
-  userId, // Destructure
-  latitude, // Destructure
-  longitude // Destructure
+  informationStyle,
+  userId,
+  latitude,
+  longitude 
 }: NarrativeDisplayProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const followUpAudioRef = useRef<HTMLAudioElement>(null);
@@ -147,7 +147,7 @@ export function NarrativeDisplay({
   };
 
   const handleFollowUpSubmit = async (question: string) => {
-    if (!question.trim() || !narrativeText || !locationDescription) {
+    if (!question.trim() || !narrativeText) { // Removed !locationDescription from check
       if(!question.trim()) {
         toast({
           variant: "destructive",
@@ -155,6 +155,8 @@ export function NarrativeDisplay({
           description: t.emptyQuestionToastDescription,
         });
       }
+      // If narrativeText is missing, the follow-up UI shouldn't even be rendered.
+      // If it is, it's a more fundamental issue upstream.
       return;
     }
     if (!userId) {
@@ -172,13 +174,13 @@ export function NarrativeDisplay({
 
     const actionInput: FollowUpServerInput = {
       currentNarrativeText: narrativeText,
-      locationDescription: locationDescription,
+      locationDescription: locationDescription, // Will be passed as "" if empty
       userQuestion: question,
-      language: currentGlobalLanguage, // This is the globally selected language
-      informationStyle: informationStyle, // Pass through
-      userId: userId, // Pass through
-      latitude: latitude, // Pass through
-      longitude: longitude, // Pass through
+      language: currentGlobalLanguage,
+      informationStyle: informationStyle,
+      userId: userId,
+      latitude: latitude,
+      longitude: longitude,
     };
 
     const result = await generateFollowUpAnswerAction(actionInput);
@@ -335,3 +337,4 @@ export function NarrativeDisplay({
     </Card>
   );
 }
+
