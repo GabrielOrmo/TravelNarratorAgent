@@ -30,6 +30,8 @@ import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
 import { useLanguage, type Locale } from "@/contexts/LanguageContext";
 import { useTranslations } from "@/lib/translations";
 
+const USER_ID_STORAGE_KEY = 'aijolot-user-id';
+
 interface NarratorFormProps {
   onGenerationStart: () => void;
   onGenerationComplete: (data: TravelNarrativeResult) => void;
@@ -48,6 +50,7 @@ export function NarratorForm({
   const { toast } = useToast();
   const t = useTranslations();
   const [isMounted, setIsMounted] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"upload" | "camera">("upload");
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -73,6 +76,15 @@ export function NarratorForm({
 
   useEffect(() => {
     setIsMounted(true);
+    
+    // Handle User ID
+    let storedUserId = localStorage.getItem(USER_ID_STORAGE_KEY);
+    if (!storedUserId) {
+      storedUserId = crypto.randomUUID();
+      localStorage.setItem(USER_ID_STORAGE_KEY, storedUserId);
+    }
+    setUserId(storedUserId);
+
   }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -111,7 +123,7 @@ export function NarratorForm({
          toast({
           variant: 'destructive',
           title: t.cameraAccessProblemTitle,
-          description: "Your browser does not support camera access.", // Generic, or add to translations
+          description: "Your browser does not support camera access.",
         });
     }
   }, [toast, t]);
@@ -151,18 +163,22 @@ export function NarratorForm({
   };
 
   async function onSubmit(data: NarratorFormValues) {
+    if (!userId) {
+      onGenerationError("User ID not available. Please try again.");
+      return;
+    }
     onGenerationStart();
     try {
       const { generateTravelNarrativeAction } = await import("@/app/actions");
-      // Pass currentLanguage to the action
-      const result = await generateTravelNarrativeAction(data, currentLanguage);
+      const result = await generateTravelNarrativeAction(data, currentLanguage, userId);
       if ("error" in result) {
         onGenerationError(result.error);
       } else {
         onGenerationComplete(result);
       }
     } catch (error) {
-      onGenerationError("An unexpected error occurred during submission.");
+      console.error("Error in NarratorForm onSubmit:", error);
+      onGenerationError(t.toastGenerationFailedTitle + ": " + (error instanceof Error ? error.message : "Unknown error"));
     }
   }
 
@@ -369,10 +385,9 @@ export function NarratorForm({
                 </FormItem>
               )}
             />
-            {/* Removed Output Language Selector from here */}
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={isGenerating || !form.formState.isValid} className="w-full">
+            <Button type="submit" disabled={isGenerating || !form.formState.isValid || !userId} className="w-full">
               <Wand2 className="mr-2 h-4 w-4" />
               {isGenerating ? t.generatingButton : t.generateNarrativeButton}
             </Button>
@@ -382,3 +397,5 @@ export function NarratorForm({
     </Card>
   );
 }
+
+    

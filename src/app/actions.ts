@@ -20,7 +20,8 @@ const WEBHOOK_URL = "https://n8n-mayia-test-u42339.vm.elestio.app/webhook-test/a
 
 export async function generateTravelNarrativeAction(
   rawValues: NarratorFormValues,
-  language: string
+  language: string,
+  userId: string // Added userId parameter
 ): Promise<TravelNarrativeResult | { error: string }> {
   try {
     const validation = narratorFormSchema.safeParse(rawValues);
@@ -29,6 +30,10 @@ export async function generateTravelNarrativeAction(
         .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
         .join('; ');
       return { error: "Invalid input: " + errorMessages };
+    }
+
+    if (!userId) {
+      return { error: "User ID is missing. Cannot proceed." };
     }
 
     const { imageDataUri, locationQuery, informationStyle } = validation.data;
@@ -46,6 +51,7 @@ export async function generateTravelNarrativeAction(
     } else if (locationQuery) {
       identifiedLocationDescription = locationQuery;
     } else {
+      // This case should ideally be caught by the form validation, but added for robustness
       return { error: "Please provide either a location search term or an image." };
     }
 
@@ -57,6 +63,8 @@ export async function generateTravelNarrativeAction(
         headers: {
           'Style': informationStyle,
           'Prompt': identifiedLocationDescription,
+          'X-User-ID': userId, // Send User ID as a header
+          'X-Output-Language': language, // Also send the output language
           // 'Content-Type': 'application/json', // If sending a body
         },
         // body: JSON.stringify({}), // If your webhook expects a JSON body
@@ -98,6 +106,8 @@ export interface FollowUpServerInput {
   locationDescription: string;
   userQuestion: string;
   language: string;
+  // userId is not explicitly needed here for Genkit flows as they don't call external webhooks with user ID.
+  // If your follow-up also needs to call an external agent with user ID, add it here and to the flow.
 }
 
 export interface FollowUpResult {
@@ -113,7 +123,6 @@ export async function generateFollowUpAnswerAction(
       return { error: "Follow-up question cannot be empty." };
     }
 
-    // Follow-up questions still use the internal Genkit flow
     const followUpAnswerResult: GenerateFollowUpOutput = await generateFollowUpAnswer({
       currentNarrativeText: input.currentNarrativeText,
       locationDescription: input.locationDescription,
@@ -127,7 +136,7 @@ export async function generateFollowUpAnswerAction(
 
     const audioResult: NarrationToAudioOutput = await narrationToAudio({
       narratedText: followUpAnswerResult.answerText,
-      voice: "default", // You might want to make voice configurable or tie to language
+      voice: "default", 
     });
 
     if (!audioResult.audioDataUri) {
@@ -147,3 +156,5 @@ export async function generateFollowUpAnswerAction(
     return { error: errorMessage };
   }
 }
+
+    
