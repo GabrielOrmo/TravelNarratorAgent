@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import type { TravelNarrativeResult } from "@/app/actions";
 import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
@@ -61,6 +62,7 @@ export function NarratorForm({
   isGenerating,
 }: NarratorFormProps) {
   const { toast } = useToast();
+  const [isMounted, setIsMounted] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"upload" | "camera">("upload");
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -74,9 +76,13 @@ export function NarratorForm({
       imageDataUri: undefined,
       locationQuery: undefined,
       informationStyle: "Curious",
-      outputLanguage: "en", // Default language
+      outputLanguage: "en",
     },
   });
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -120,7 +126,7 @@ export function NarratorForm({
   }, [toast]);
 
   useEffect(() => {
-    if (activeTab === "camera" && hasCameraPermission === null) {
+    if (activeTab === "camera" && hasCameraPermission === null && isMounted) { // Ensure isMounted before starting camera
       startCamera();
     }
     return () => {
@@ -129,7 +135,7 @@ export function NarratorForm({
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [activeTab, startCamera, hasCameraPermission]);
+  }, [activeTab, startCamera, hasCameraPermission, isMounted]);
 
   const handleCaptureImage = () => {
     if (videoRef.current && canvasRef.current) {
@@ -172,9 +178,61 @@ export function NarratorForm({
     setImagePreview(null);
     form.setValue("imageDataUri", undefined, { shouldValidate: true });
     if(fileInputRef.current) fileInputRef.current.value = "";
-     if (activeTab === "camera" && hasCameraPermission) {
+     if (activeTab === "camera" && hasCameraPermission && isMounted) { // Ensure isMounted
           startCamera();
      }
+  }
+
+  if (!isMounted) {
+    return (
+      <Card className="shadow-lg w-full">
+        <CardHeader>
+          <Skeleton className="h-6 w-3/4" /> {/* Title */}
+          <Skeleton className="h-4 w-1/2 mt-1" /> {/* Description */}
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Location Query */}
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-1/3" /> {/* Label */}
+            <Skeleton className="h-10 w-full" /> {/* Input */}
+          </div>
+
+          {/* Separator */}
+          <div className="flex items-center space-x-2 py-2">
+            <Skeleton className="h-px flex-grow" />
+            <span className="text-sm text-muted-foreground">OR</span>
+            <Skeleton className="h-px flex-grow" />
+          </div>
+          
+          {/* Location Image */}
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-1/3" /> {/* Label */}
+            <div className="grid grid-cols-2 gap-2 mb-2"> {/* TabsList imitation */}
+                 <Skeleton className="h-10 w-full" />
+                 <Skeleton className="h-10 w-full" />
+            </div>
+            <Skeleton className="h-10 w-full" /> {/* Input file / Button capture */}
+          </div>
+
+          {/* Information Style */}
+          <div className="space-y-3">
+            <Skeleton className="h-5 w-1/3 mb-2" /> {/* Label */}
+            <Skeleton className="h-16 w-full rounded-md border p-3" /> {/* Radio Item 1 */}
+            <Skeleton className="h-16 w-full rounded-md border p-3 mt-2" /> {/* Radio Item 2 */}
+            <Skeleton className="h-16 w-full rounded-md border p-3 mt-2" /> {/* Radio Item 3 */}
+          </div>
+
+          {/* Output Language */}
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-1/3" /> {/* Label */}
+            <Skeleton className="h-10 w-full" /> {/* Select */}
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Skeleton className="h-10 w-full" /> {/* Button */}
+        </CardFooter>
+      </Card>
+    );
   }
 
   return (
