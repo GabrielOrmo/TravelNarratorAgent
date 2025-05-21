@@ -1,24 +1,12 @@
+
 // src/app/actions.ts
 "use server";
 
-import { z } from "zod";
 import { generateNarrative } from "@/ai/flows/narrative-generation";
 import type { GenerateNarrativeOutput } from "@/ai/flows/narrative-generation";
 import { narrationToAudio } from "@/ai/flows/narration-to-audio";
 import type { NarrationToAudioOutput } from "@/ai/flows/narration-to-audio";
-
-export const narratorFormSchema = z.object({
-  locationDescription: z.string().min(10, {
-    message: "Location description must be at least 10 characters.",
-  }).max(500, {
-    message: "Location description must be at most 500 characters.",
-  }),
-  informationStyle: z.enum(["Historical", "Curious", "Legends"], {
-    required_error: "You need to select an information style.",
-  }),
-});
-
-export type NarratorFormValues = z.infer<typeof narratorFormSchema>;
+import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
 
 export interface TravelNarrativeResult {
   narrativeText: string;
@@ -29,10 +17,14 @@ export async function generateTravelNarrativeAction(
   values: NarratorFormValues
 ): Promise<TravelNarrativeResult | { error: string }> {
   try {
-    // Validate input again on the server side (optional, as client validates too)
+    // Validate input again on the server side
     const validation = narratorFormSchema.safeParse(values);
     if (!validation.success) {
-      return { error: "Invalid input: " + validation.error.flatten().fieldErrors };
+      // Construct a more detailed error message string
+      const errorMessages = Object.entries(validation.error.flatten().fieldErrors)
+        .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+        .join('; ');
+      return { error: "Invalid input: " + errorMessages };
     }
 
     const { locationDescription, informationStyle } = values;

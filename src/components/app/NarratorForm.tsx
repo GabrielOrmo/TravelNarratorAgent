@@ -1,9 +1,9 @@
+
 // src/components/app/NarratorForm.tsx
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import type * as z from "zod";
 import { Wand2, Info, Newspaper, Castle, HelpCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,8 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { narratorFormSchema, type TravelNarrativeResult } from "@/app/actions";
-import type { NarratorFormValues } from "@/app/actions";
+import type { TravelNarrativeResult } from "@/app/actions";
+import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
 
 const informationStyles = [
   { id: "Historical", label: "Historical", description: "Focus on facts, dates, and historical significance.", icon: Castle },
