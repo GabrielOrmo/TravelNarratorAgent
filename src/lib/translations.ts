@@ -16,6 +16,17 @@ type TranslationKeys = {
   locationNameLabel: string;
   locationNamePlaceholder: string;
   locationNameDescription: string;
+  useCurrentLocationButton: string;
+  fetchingLocationButton: string;
+  geolocationNotSupported: string;
+  geolocationPermissionDenied: string;
+  geolocationPositionUnavailable: string;
+  geolocationTimeout: string;
+  geolocationUnknownError: string;
+  geolocationErrorTitle: string;
+  geolocationSuccessTitle: string;
+  geolocationSuccessDescription: string;
+  geolocationCoordinates: string;
   orSeparator: string;
   locationImageLabel: string;
   uploadImageTab: string;
@@ -23,6 +34,7 @@ type TranslationKeys = {
   uploadImageDescription: string;
   cameraAccessProblemTitle: string;
   cameraAccessProblemDescription: string;
+  cameraNotSupported: string;
   captureImageButton: string;
   imagePreviewTitle: string;
   clearImageButton: string;
@@ -33,6 +45,14 @@ type TranslationKeys = {
   styleCuriousDescription: string;
   styleLegendsLabel: string;
   styleLegendsDescription: string;
+  outputLanguageLabel: string;
+  selectLanguagePlaceholder: string;
+  outputLanguageDescription: string;
+  languageEn: string;
+  languageEs: string;
+  languageFr: string;
+  languageDe: string;
+  languageJa: string;
   generateNarrativeButton: string;
   generatingButton: string;
   // NarratorForm Skeletons (simple, usually not translated or generic)
@@ -61,8 +81,8 @@ type TranslationKeys = {
   followUpFailedToastTitle: string;
   followUpAnswerReadyToastTitle: string;
   followUpAnswerReadyToastDescription: string;
-  narrativeDisplayFooter: string; // Original footer
-  narrativeDisplayFooterWebhook: string; // New footer for webhook scenario
+  narrativeDisplayFooter: string; 
+  narrativeDisplayFooterWebhook: string; 
   emptyQuestionToastTitle: string;
   emptyQuestionToastDescription: string;
   voiceInputNotReadyToastTitle: string;
@@ -90,17 +110,29 @@ const translationsData: Record<Locale, TranslationKeys> = {
     toastNarrativeGeneratedDescription: (location) => `Your agent response for ${location || 'the location'} is ready.`,
     toastGenerationFailedTitle: 'Generation Failed',
     formTitle: 'Describe Your Destination',
-    formDescription: 'Enter a location name or use an image. Then, choose your narration style.',
+    formDescription: 'Enter a location, use an image, or share your current location. Then, choose your narration style.',
     locationNameLabel: 'Location Name or Description',
     locationNamePlaceholder: 'e.g., Eiffel Tower, Paris',
     locationNameDescription: 'Type the name or a brief description of the location.',
+    useCurrentLocationButton: 'Use My Current Location',
+    fetchingLocationButton: 'Fetching Location...',
+    geolocationNotSupported: 'Geolocation is not supported by your browser.',
+    geolocationPermissionDenied: 'Permission to access location was denied. Please enable it in your browser settings.',
+    geolocationPositionUnavailable: 'Location information is unavailable.',
+    geolocationTimeout: 'The request to get user location timed out.',
+    geolocationUnknownError: 'An unknown error occurred while trying to get your location.',
+    geolocationErrorTitle: 'Location Error',
+    geolocationSuccessTitle: 'Location Acquired',
+    geolocationSuccessDescription: 'Your current location will be sent to the agent.',
+    geolocationCoordinates: 'Coordinates',
     orSeparator: 'OR',
     locationImageLabel: 'Location Image',
     uploadImageTab: 'Upload Image',
     useCameraTab: 'Use Camera',
     uploadImageDescription: 'Upload a clear picture of the landmark or location.',
     cameraAccessProblemTitle: 'Camera Access Problem',
-    cameraAccessProblemDescription: 'Could not access the camera. Please ensure permissions are granted. You can still upload or type the location.',
+    cameraAccessProblemDescription: 'Could not access the camera. Please ensure permissions are granted.',
+    cameraNotSupported: "Your browser does not support camera access.",
     captureImageButton: 'Capture Image',
     imagePreviewTitle: 'Image Preview:',
     clearImageButton: 'Clear Image',
@@ -111,6 +143,14 @@ const translationsData: Record<Locale, TranslationKeys> = {
     styleCuriousDescription: 'Uncover interesting tidbits and unusual details.',
     styleLegendsLabel: 'Legends',
     styleLegendsDescription: 'Explore myths, folklore, and captivating stories.',
+    outputLanguageLabel: 'Output Language',
+    selectLanguagePlaceholder: 'Select a language',
+    outputLanguageDescription: 'Choose the language for the narrative.',
+    languageEn: 'English',
+    languageEs: 'Español (Spanish)',
+    languageFr: 'Français (French)',
+    languageDe: 'Deutsch (German)',
+    languageJa: '日本語 (Japanese)',
     generateNarrativeButton: 'Get Agent Response',
     generatingButton: 'Contacting Agent...',
     loadingYear: 'Loading year...',
@@ -160,17 +200,29 @@ const translationsData: Record<Locale, TranslationKeys> = {
     toastNarrativeGeneratedDescription: (location) => `La respuesta de tu agente para ${location || 'la ubicación'} está lista.`,
     toastGenerationFailedTitle: 'Falló la Generación',
     formTitle: 'Describe Tu Destino',
-    formDescription: 'Ingresa el nombre de una ubicación o usa una imagen. Luego, elige tu estilo de narración.',
+    formDescription: 'Ingresa una ubicación, usa una imagen o comparte tu ubicación actual. Luego, elige tu estilo de narración.',
     locationNameLabel: 'Nombre o Descripción de la Ubicación',
     locationNamePlaceholder: 'Ej: Torre Eiffel, París',
     locationNameDescription: 'Escribe el nombre o una breve descripción de la ubicación.',
+    useCurrentLocationButton: 'Usar Mi Ubicación Actual',
+    fetchingLocationButton: 'Obteniendo Ubicación...',
+    geolocationNotSupported: 'La geolocalización no es compatible con tu navegador.',
+    geolocationPermissionDenied: 'Se denegó el permiso para acceder a la ubicación. Por favor, actívalo en la configuración de tu navegador.',
+    geolocationPositionUnavailable: 'La información de ubicación no está disponible.',
+    geolocationTimeout: 'La solicitud para obtener la ubicación del usuario expiró.',
+    geolocationUnknownError: 'Ocurrió un error desconocido al intentar obtener tu ubicación.',
+    geolocationErrorTitle: 'Error de Ubicación',
+    geolocationSuccessTitle: 'Ubicación Adquirida',
+    geolocationSuccessDescription: 'Tu ubicación actual se enviará al agente.',
+    geolocationCoordinates: 'Coordenadas',
     orSeparator: 'O',
     locationImageLabel: 'Imagen de la Ubicación',
     uploadImageTab: 'Subir Imagen',
     useCameraTab: 'Usar Cámara',
     uploadImageDescription: 'Sube una foto clara del lugar o punto de interés.',
     cameraAccessProblemTitle: 'Problema de Acceso a la Cámara',
-    cameraAccessProblemDescription: 'No se pudo acceder a la cámara. Asegúrate de que los permisos estén concedidos. Aún puedes subir o escribir la ubicación.',
+    cameraAccessProblemDescription: 'No se pudo acceder a la cámara. Asegúrate de que los permisos estén concedidos.',
+    cameraNotSupported: "Tu navegador no soporta el acceso a la cámara.",
     captureImageButton: 'Capturar Imagen',
     imagePreviewTitle: 'Vista Previa de Imagen:',
     clearImageButton: 'Limpiar Imagen',
@@ -181,6 +233,14 @@ const translationsData: Record<Locale, TranslationKeys> = {
     styleCuriousDescription: 'Descubre datos interesantes y detalles inusuales.',
     styleLegendsLabel: 'Leyendas',
     styleLegendsDescription: 'Explora mitos, folclore e historias cautivadoras.',
+    outputLanguageLabel: 'Idioma de Salida',
+    selectLanguagePlaceholder: 'Selecciona un idioma',
+    outputLanguageDescription: 'Elige el idioma para la narración.',
+    languageEn: 'Inglés',
+    languageEs: 'Español',
+    languageFr: 'Francés',
+    languageDe: 'Alemán',
+    languageJa: 'Japonés',
     generateNarrativeButton: 'Obtener Respuesta del Agente',
     generatingButton: 'Contactando Agente...',
     loadingYear: 'Cargando año...',
@@ -230,17 +290,29 @@ const translationsData: Record<Locale, TranslationKeys> = {
     toastNarrativeGeneratedDescription: (location) => `La réponse de votre agent pour ${location || "l'endroit"} est prête.`,
     toastGenerationFailedTitle: 'Échec de la Génération',
     formTitle: 'Décrivez Votre Destination',
-    formDescription: "Entrez un nom de lieu ou utilisez une image. Ensuite, choisissez votre style de narration.",
+    formDescription: "Entrez un lieu, utilisez une image ou partagez votre position actuelle. Ensuite, choisissez votre style de narration.",
     locationNameLabel: 'Nom ou Description du Lieu',
     locationNamePlaceholder: 'Ex: Tour Eiffel, Paris',
     locationNameDescription: 'Tapez le nom ou une brève description du lieu.',
+    useCurrentLocationButton: 'Utiliser Ma Position Actuelle',
+    fetchingLocationButton: 'Récupération Position...',
+    geolocationNotSupported: 'La géolocalisation n’est pas supportée par votre navigateur.',
+    geolocationPermissionDenied: 'L’autorisation d’accéder à la position a été refusée. Veuillez l’activer dans les paramètres de votre navigateur.',
+    geolocationPositionUnavailable: 'Les informations de position sont indisponibles.',
+    geolocationTimeout: 'La demande de récupération de la position utilisateur a expiré.',
+    geolocationUnknownError: 'Une erreur inconnue est survenue lors de la tentative de récupération de votre position.',
+    geolocationErrorTitle: 'Erreur de Position',
+    geolocationSuccessTitle: 'Position Acquise',
+    geolocationSuccessDescription: 'Votre position actuelle sera envoyée à l’agent.',
+    geolocationCoordinates: 'Coordonnées',
     orSeparator: 'OU',
     locationImageLabel: 'Image du Lieu',
     uploadImageTab: 'Télécharger Image',
     useCameraTab: 'Utiliser Caméra',
     uploadImageDescription: 'Téléchargez une photo claire du lieu ou du point d’intérêt.',
     cameraAccessProblemTitle: "Problème d'Accès Caméra",
-    cameraAccessProblemDescription: "Impossible d'accéder à la caméra. Veuillez vous assurer que les autorisations sont accordées. Vous pouvez toujours télécharger ou taper le lieu.",
+    cameraAccessProblemDescription: "Impossible d'accéder à la caméra. Veuillez vous assurer que les autorisations sont accordées.",
+    cameraNotSupported: "Votre navigateur ne prend pas en charge l'accès à la caméra.",
     captureImageButton: "Capturer l'Image",
     imagePreviewTitle: 'Aperçu Image:',
     clearImageButton: 'Effacer Image',
@@ -251,6 +323,14 @@ const translationsData: Record<Locale, TranslationKeys> = {
     styleCuriousDescription: 'Découvrez des anecdotes intéressantes et des détails insolites.',
     styleLegendsLabel: 'Légendes',
     styleLegendsDescription: 'Explorez les mythes, le folklore et les histoires captivantes.',
+    outputLanguageLabel: 'Langue de Sortie',
+    selectLanguagePlaceholder: 'Sélectionnez une langue',
+    outputLanguageDescription: 'Choisissez la langue pour la narration.',
+    languageEn: 'Anglais',
+    languageEs: 'Espagnol',
+    languageFr: 'Français',
+    languageDe: 'Allemand',
+    languageJa: 'Japonais',
     generateNarrativeButton: "Obtenir Réponse de l'Agent",
     generatingButton: "Contact de l'Agent...",
     loadingYear: "Chargement de l'année...",

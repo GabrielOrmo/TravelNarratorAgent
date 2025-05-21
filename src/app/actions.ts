@@ -11,7 +11,7 @@ import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
 
 export interface TravelNarrativeResult {
   narrativeText: string;
-  audioDataUri: string; // Will be empty for main narrative from webhook
+  audioDataUri: string; 
   locationDescription: string;
   outputLanguage: string;
 }
@@ -20,8 +20,10 @@ const WEBHOOK_URL = "https://n8n-mayia-test-u42339.vm.elestio.app/webhook-test/a
 
 export async function generateTravelNarrativeAction(
   rawValues: NarratorFormValues,
-  language: string,
-  userId: string // Added userId parameter
+  language: string, 
+  userId: string,
+  latitude?: number | null,
+  longitude?: number | null
 ): Promise<TravelNarrativeResult | { error: string }> {
   try {
     const validation = narratorFormSchema.safeParse(rawValues);
@@ -36,7 +38,7 @@ export async function generateTravelNarrativeAction(
       return { error: "User ID is missing. Cannot proceed." };
     }
 
-    const { imageDataUri, locationQuery, informationStyle } = validation.data;
+    const { imageDataUri, locationQuery, informationStyle, outputLanguage: formOutputLanguage } = validation.data;
     let identifiedLocationDescription: string;
 
     if (imageDataUri) {
@@ -51,23 +53,28 @@ export async function generateTravelNarrativeAction(
     } else if (locationQuery) {
       identifiedLocationDescription = locationQuery;
     } else {
-      // This case should ideally be caught by the form validation, but added for robustness
       return { error: "Please provide either a location search term or an image." };
     }
 
-    // Call the external webhook
+    // Use the language from the global context, not from the form anymore for the webhook call.
+    // The formOutputLanguage is still validated by Zod but 'language' param (from global context) is now used.
+    const effectiveOutputLanguage = language || formOutputLanguage;
+
+
     let narrativeTextFromWebhook: string;
     try {
+      const headers: Record<string, string> = {
+        'Style': informationStyle,
+        'Prompt': identifiedLocationDescription,
+        'X-User-ID': userId, 
+        'X-Output-Language': effectiveOutputLanguage,
+        'X-Latitude': latitude?.toString() || '',
+        'X-Longitude': longitude?.toString() || '',
+      };
+      
       const webhookResponse = await fetch(WEBHOOK_URL, {
         method: 'POST',
-        headers: {
-          'Style': informationStyle,
-          'Prompt': identifiedLocationDescription,
-          'X-User-ID': userId, // Send User ID as a header
-          'X-Output-Language': language, // Also send the output language
-          // 'Content-Type': 'application/json', // If sending a body
-        },
-        // body: JSON.stringify({}), // If your webhook expects a JSON body
+        headers: headers,
       });
 
       if (!webhookResponse.ok) {
@@ -86,9 +93,9 @@ export async function generateTravelNarrativeAction(
 
     return {
       narrativeText: narrativeTextFromWebhook,
-      audioDataUri: "", // No audio from webhook for main narrative
+      audioDataUri: "", 
       locationDescription: identifiedLocationDescription,
-      outputLanguage: language,
+      outputLanguage: effectiveOutputLanguage, // Return the language used for generation
     };
 
   } catch (error) {
@@ -106,8 +113,6 @@ export interface FollowUpServerInput {
   locationDescription: string;
   userQuestion: string;
   language: string;
-  // userId is not explicitly needed here for Genkit flows as they don't call external webhooks with user ID.
-  // If your follow-up also needs to call an external agent with user ID, add it here and to the flow.
 }
 
 export interface FollowUpResult {
@@ -156,5 +161,3 @@ export async function generateFollowUpAnswerAction(
     return { error: errorMessage };
   }
 }
-
-    

@@ -3,9 +3,9 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Wand2, Castle, HelpCircle, Newspaper, Upload, Camera, Image as ImageIcon, AlertTriangle, Search, MapPin } from "lucide-react";
+import { Wand2, Castle, HelpCircle, Newspaper, Upload, Camera, Image as ImageIcon, AlertTriangle, Search, MapPin, LocateFixed } from "lucide-react";
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import NextImage from "next/image"; // Renamed to avoid conflict
+import NextImage from "next/image"; 
 
 import { Button } from "@/components/ui/button";
 import {
@@ -37,7 +37,7 @@ interface NarratorFormProps {
   onGenerationComplete: (data: TravelNarrativeResult) => void;
   onGenerationError: (message: string) => void;
   isGenerating: boolean;
-  currentLanguage: Locale; // Receive current language
+  currentLanguage: Locale; 
 }
 
 export function NarratorForm({
@@ -58,6 +58,12 @@ export function NarratorForm({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+
+
   const informationStyles = [
     { id: "Historical", label: t.styleHistoricalLabel, description: t.styleHistoricalDescription, icon: Castle },
     { id: "Curious", label: t.styleCuriousLabel, description: t.styleCuriousDescription, icon: HelpCircle },
@@ -77,7 +83,6 @@ export function NarratorForm({
   useEffect(() => {
     setIsMounted(true);
     
-    // Handle User ID
     let storedUserId = localStorage.getItem(USER_ID_STORAGE_KEY);
     if (!storedUserId) {
       storedUserId = crypto.randomUUID();
@@ -123,7 +128,7 @@ export function NarratorForm({
          toast({
           variant: 'destructive',
           title: t.cameraAccessProblemTitle,
-          description: "Your browser does not support camera access.",
+          description: t.cameraNotSupported,
         });
     }
   }, [toast, t]);
@@ -162,6 +167,47 @@ export function NarratorForm({
     }
   };
 
+  const handleRequestLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError(t.geolocationNotSupported);
+      toast({ variant: "destructive", title: t.geolocationErrorTitle, description: t.geolocationNotSupported });
+      return;
+    }
+    setIsFetchingLocation(true);
+    setLocationError(null);
+    setLatitude(null);
+    setLongitude(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLatitude(position.coords.latitude);
+        setLongitude(position.coords.longitude);
+        setIsFetchingLocation(false);
+        toast({ title: t.geolocationSuccessTitle, description: t.geolocationSuccessDescription });
+      },
+      (error) => {
+        let message = "";
+        switch(error.code) {
+            case error.PERMISSION_DENIED:
+                message = t.geolocationPermissionDenied;
+                break;
+            case error.POSITION_UNAVAILABLE:
+                message = t.geolocationPositionUnavailable;
+                break;
+            case error.TIMEOUT:
+                message = t.geolocationTimeout;
+                break;
+            default:
+                message = t.geolocationUnknownError;
+                break;
+        }
+        setLocationError(message);
+        setIsFetchingLocation(false);
+        toast({ variant: "destructive", title: t.geolocationErrorTitle, description: message });
+      }
+    );
+  };
+
   async function onSubmit(data: NarratorFormValues) {
     if (!userId) {
       onGenerationError("User ID not available. Please try again.");
@@ -170,7 +216,7 @@ export function NarratorForm({
     onGenerationStart();
     try {
       const { generateTravelNarrativeAction } = await import("@/app/actions");
-      const result = await generateTravelNarrativeAction(data, currentLanguage, userId);
+      const result = await generateTravelNarrativeAction(data, currentLanguage, userId, latitude, longitude);
       if ("error" in result) {
         onGenerationError(result.error);
       } else {
@@ -203,6 +249,9 @@ export function NarratorForm({
             <Skeleton className="h-5 w-1/3" />
             <Skeleton className="h-10 w-full" />
           </div>
+           <div className="space-y-2">
+             <Skeleton className="h-10 w-full" />
+          </div>
           <div className="flex items-center space-x-2 py-2">
             <Skeleton className="h-px flex-grow" />
             <span className="text-sm text-muted-foreground">{t.orSeparator}</span>
@@ -221,6 +270,9 @@ export function NarratorForm({
             <Skeleton className="h-16 w-full rounded-md border p-3" />
             <Skeleton className="h-16 w-full rounded-md border p-3 mt-2" />
             <Skeleton className="h-16 w-full rounded-md border p-3 mt-2" />
+          </div>
+           <div className="space-y-2">
+             <Skeleton className="h-10 w-full" />
           </div>
         </CardContent>
         <CardFooter>
@@ -274,6 +326,24 @@ export function NarratorForm({
                 </FormItem>
               )}
             />
+            
+            <div className="space-y-2">
+                <Button type="button" variant="outline" onClick={handleRequestLocation} disabled={isFetchingLocation || isGenerating} className="w-full">
+                    <LocateFixed className={`mr-2 h-4 w-4 ${isFetchingLocation ? 'animate-pulse' : ''}`} />
+                    {isFetchingLocation ? t.fetchingLocationButton : t.useCurrentLocationButton}
+                </Button>
+                {locationError && <Alert variant="destructive" className="mt-2"><AlertTriangle className="h-4 w-4" /><AlertTitle>{t.geolocationErrorTitle}</AlertTitle><AlertDescription>{locationError}</AlertDescription></Alert>}
+                 {latitude && longitude && !locationError && (
+                    <Alert variant="default" className="mt-2 bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700">
+                        <LocateFixed className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        <AlertTitle className="text-green-700 dark:text-green-300">{t.geolocationSuccessTitle}</AlertTitle>
+                        <AlertDescription className="text-green-600 dark:text-green-400">
+                           {t.geolocationCoordinates}: {latitude.toFixed(4)}, {longitude.toFixed(4)}
+                        </AlertDescription>
+                    </Alert>
+                )}
+            </div>
+
 
             <div className="flex items-center space-x-2">
               <Separator className="flex-grow" />
@@ -315,7 +385,7 @@ export function NarratorForm({
                                 <AlertTriangle className="h-4 w-4" />
                                 <AlertTitle>{t.cameraAccessProblemTitle}</AlertTitle>
                                 <AlertDescription>
-                                {t.cameraAccessProblemDescription}
+                                {t.cameraAccessProblemDescription} {t.cameraNotSupported}
                                 </AlertDescription>
                             </Alert>
                         )}
@@ -385,6 +455,39 @@ export function NarratorForm({
                 </FormItem>
               )}
             />
+            
+            <FormField
+                control={form.control}
+                name="outputLanguage"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                           {/* Using an existing icon, e.g. Languages from lucide-react */}
+                           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-languages"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+                            {t.outputLanguageLabel}
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder={t.selectLanguagePlaceholder} />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="en">{t.languageEn}</SelectItem>
+                                <SelectItem value="es">{t.languageEs}</SelectItem>
+                                <SelectItem value="fr">{t.languageFr}</SelectItem>
+                                <SelectItem value="de">{t.languageDe}</SelectItem>
+                                <SelectItem value="ja">{t.languageJa}</SelectItem>
+                                {/* Add more languages here */}
+                            </SelectContent>
+                        </Select>
+                        <FormDescription>
+                            {t.outputLanguageDescription}
+                        </FormDescription>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
           </CardContent>
           <CardFooter>
             <Button type="submit" disabled={isGenerating || !form.formState.isValid || !userId} className="w-full">
@@ -397,5 +500,3 @@ export function NarratorForm({
     </Card>
   );
 }
-
-    
