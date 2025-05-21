@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { BotMessageSquare, Volume2, MapPin, Mic, CornerDownLeft, User, AlertTriangle } from "lucide-react";
+import { BotMessageSquare, Volume2, MapPin, Mic, CornerDownLeft, User, AlertTriangle, Info } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { generateFollowUpAnswerAction, type FollowUpResult, type FollowUpServerInput } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -16,16 +16,16 @@ import { useTranslations } from "@/lib/translations";
 
 interface NarrativeDisplayProps {
   narrativeText: string;
-  audioDataUri: string;
-  locationDescription: string; 
-  outputLanguage: string; // This is the language the narrative was generated in
+  audioDataUri: string; // For main narrative, this might be empty if coming from webhook
+  locationDescription: string;
+  outputLanguage: string;
 }
 
 export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescription, outputLanguage }: NarrativeDisplayProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const followUpAudioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
-  const { language: currentGlobalLanguage } = useLanguage(); // For UI and new requests
+  const { language: currentGlobalLanguage } = useLanguage();
   const t = useTranslations();
 
 
@@ -37,13 +37,15 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
   const [micPermissionError, setMicPermissionError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.load(); 
+    if (audioDataUri && audioRef.current) {
+      audioRef.current.src = audioDataUri; // Set src directly
+      audioRef.current.load();
     }
   }, [audioDataUri]);
 
   useEffect(() => {
     if (followUpResult?.answerAudioDataUri && followUpAudioRef.current) {
+      followUpAudioRef.current.src = followUpResult.answerAudioDataUri; // Set src directly
       followUpAudioRef.current.load();
     }
   }, [followUpResult?.answerAudioDataUri]);
@@ -55,7 +57,7 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
         const recognitionInstance = new SpeechRecognitionAPI();
         recognitionInstance.continuous = false;
         recognitionInstance.interimResults = false;
-        recognitionInstance.lang = currentGlobalLanguage || 'en-US'; 
+        recognitionInstance.lang = currentGlobalLanguage || 'en-US';
 
         recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
           const transcript = event.results[event.results.length -1][0].transcript.trim();
@@ -110,9 +112,9 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
       speechRecognition.stop();
       setIsRecording(false);
     } else {
-      setMicPermissionError(null); 
-      setTranscribedQuestion(""); 
-      setFollowUpResult(null); 
+      setMicPermissionError(null);
+      setTranscribedQuestion("");
+      setFollowUpResult(null);
       try {
         if (speechRecognition.lang !== (currentGlobalLanguage || 'en-US')) {
             speechRecognition.lang = currentGlobalLanguage || 'en-US';
@@ -150,7 +152,7 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
       currentNarrativeText: narrativeText,
       locationDescription: locationDescription,
       userQuestion: question,
-      language: currentGlobalLanguage, // Pass global language for the AI response
+      language: currentGlobalLanguage,
     };
 
     const result = await generateFollowUpAnswerAction(actionInput);
@@ -205,7 +207,13 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
               {t.audioNotSupported}
             </audio>
           ) : (
-            <p className="text-sm text-muted-foreground">Audio is being processed or is unavailable.</p>
+            <Alert variant="default" className="bg-muted/50">
+              <Info className="h-4 w-4" />
+              <AlertTitle>{t.audioUnavailableTitle}</AlertTitle>
+              <AlertDescription>
+                {t.audioUnavailableDescription}
+              </AlertDescription>
+            </Alert>
           )}
         </div>
         <Separator />
@@ -295,7 +303,7 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
       </CardContent>
       <CardFooter>
         <p className="text-xs text-muted-foreground">
-            {t.narrativeDisplayFooter}
+            {t.narrativeDisplayFooterWebhook}
         </p>
       </CardFooter>
     </Card>

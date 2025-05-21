@@ -1,26 +1,26 @@
 
 "use server";
 
-import { generateNarrative } from "@/ai/flows/narrative-generation";
-import type { GenerateNarrativeOutput } from "@/ai/flows/narrative-generation";
-import { narrationToAudio } from "@/ai/flows/narration-to-audio";
-import type { NarrationToAudioOutput } from "@/ai/flows/narration-to-audio";
 import { generateImageDescription } from "@/ai/flows/image-to-description-flow";
 import type { GenerateImageDescriptionOutput } from "@/ai/flows/image-to-description-flow";
+import { narrationToAudio } from "@/ai/flows/narration-to-audio"; // Still needed for follow-ups
+import type { NarrationToAudioOutput } from "@/ai/flows/narration-to-audio";
 import { generateFollowUpAnswer } from "@/ai/flows/follow-up-question-flow";
 import type { GenerateFollowUpOutput } from "@/ai/flows/follow-up-question-flow";
 import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
 
 export interface TravelNarrativeResult {
   narrativeText: string;
-  audioDataUri: string;
+  audioDataUri: string; // Will be empty for main narrative from webhook
   locationDescription: string;
-  outputLanguage: string; 
+  outputLanguage: string;
 }
+
+const WEBHOOK_URL = "https://n8n-mayia-test-u42339.vm.elestio.app/webhook-test/a21f3fcb-4808-495c-974a-7646892675a2";
 
 export async function generateTravelNarrativeAction(
   rawValues: NarratorFormValues,
-  language: string // Added language parameter
+  language: string
 ): Promise<TravelNarrativeResult | { error: string }> {
   try {
     const validation = narratorFormSchema.safeParse(rawValues);
@@ -46,35 +46,43 @@ export async function generateTravelNarrativeAction(
     } else if (locationQuery) {
       identifiedLocationDescription = locationQuery;
     } else {
-      // This case should be caught by schema validation, but as a safeguard:
       return { error: "Please provide either a location search term or an image." };
     }
-    
-    const narrativeResult: GenerateNarrativeOutput = await generateNarrative({
-      locationDescription: identifiedLocationDescription,
-      informationStyle,
-      outputLanguage: language, // Use passed language
-    });
 
-    if (!narrativeResult.narrativeText) {
-      return { error: "Failed to generate narrative text." };
-    }
-    
-    const audioResult: NarrationToAudioOutput = await narrationToAudio({
-      narratedText: narrativeResult.narrativeText,
-      voice: "default", 
-    });
+    // Call the external webhook
+    let narrativeTextFromWebhook: string;
+    try {
+      const webhookResponse = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Style': informationStyle,
+          'Prompt': identifiedLocationDescription,
+          // 'Content-Type': 'application/json', // If sending a body
+        },
+        // body: JSON.stringify({}), // If your webhook expects a JSON body
+      });
 
-    if (!audioResult.audioDataUri) {
-      return { error: "Failed to generate audio." };
+      if (!webhookResponse.ok) {
+        const errorText = await webhookResponse.text();
+        console.error("Webhook error response:", errorText);
+        return { error: `Failed to get narrative from agent. Status: ${webhookResponse.status}. ${errorText}` };
+      }
+      narrativeTextFromWebhook = await webhookResponse.text();
+      if (!narrativeTextFromWebhook) {
+        return { error: "Agent returned an empty narrative." };
+      }
+    } catch (fetchError) {
+      console.error("Error calling webhook:", fetchError);
+      return { error: `Error contacting the narrative agent: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}` };
     }
 
     return {
-      narrativeText: narrativeResult.narrativeText,
-      audioDataUri: audioResult.audioDataUri,
+      narrativeText: narrativeTextFromWebhook,
+      audioDataUri: "", // No audio from webhook for main narrative
       locationDescription: identifiedLocationDescription,
-      outputLanguage: language, // Include passed language in the result
+      outputLanguage: language,
     };
+
   } catch (error) {
     console.error("Error in generateTravelNarrativeAction:", error);
     let errorMessage = "An unexpected error occurred. Please try again.";
@@ -85,11 +93,11 @@ export async function generateTravelNarrativeAction(
   }
 }
 
-export interface FollowUpServerInput { // Renamed to avoid conflict if used on client
+export interface FollowUpServerInput {
   currentNarrativeText: string;
   locationDescription: string;
   userQuestion: string;
-  language: string; // Added language parameter
+  language: string;
 }
 
 export interface FollowUpResult {
@@ -98,18 +106,19 @@ export interface FollowUpResult {
 }
 
 export async function generateFollowUpAnswerAction(
-  input: FollowUpServerInput // Use new type
+  input: FollowUpServerInput
 ): Promise<FollowUpResult | { error: string }> {
   try {
     if (!input.userQuestion.trim()) {
       return { error: "Follow-up question cannot be empty." };
     }
 
+    // Follow-up questions still use the internal Genkit flow
     const followUpAnswerResult: GenerateFollowUpOutput = await generateFollowUpAnswer({
       currentNarrativeText: input.currentNarrativeText,
       locationDescription: input.locationDescription,
       userQuestion: input.userQuestion,
-      outputLanguage: input.language, // Use passed language
+      outputLanguage: input.language,
     });
 
     if (!followUpAnswerResult.answerText) {
@@ -118,7 +127,7 @@ export async function generateFollowUpAnswerAction(
 
     const audioResult: NarrationToAudioOutput = await narrationToAudio({
       narratedText: followUpAnswerResult.answerText,
-      voice: "default",
+      voice: "default", // You might want to make voice configurable or tie to language
     });
 
     if (!audioResult.audioDataUri) {
