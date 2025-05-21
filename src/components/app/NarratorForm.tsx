@@ -189,9 +189,10 @@ export function NarratorForm({
                     Location Name or Description
                   </FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="e.g., Eiffel Tower, Paris" 
-                      {...field} 
+                    <Input
+                      type="text" // Explicitly set type
+                      placeholder="e.g., Eiffel Tower, Paris"
+                      {...field}
                       value={field.value ?? ""}
                       onChange={(e) => {
                         field.onChange(e.target.value);
