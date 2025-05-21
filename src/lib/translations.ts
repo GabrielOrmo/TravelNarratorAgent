@@ -19,7 +19,11 @@ type TranslationKeys = {
   locationNameDescription: string;
   autocompleteLoading: string;
   autocompleteNoResults: string;
+  autocompleteErrorTitle: string; // Added
   useCurrentLocationButton: string;
+  scanWithCameraButton: string; // Added
+  uploadImageButton: string; // Added
+  cancelCameraButton: string; // Added
   fetchingLocationButton: string;
   geolocationNotSupported: string;
   geolocationPermissionDenied: string;
@@ -30,16 +34,12 @@ type TranslationKeys = {
   geolocationSuccessTitle: string;
   geolocationSuccessDescription: string;
   geolocationCoordinates: string;
-  orSeparator: string;
-  locationImageLabel: string;
-  uploadImageTab: string;
-  useCameraTab: string;
-  uploadImageDescription: string;
   cameraAccessProblemTitle: string;
   cameraAccessProblemDescription: string;
   cameraNotSupported: string;
   captureImageButton: string;
   imagePreviewTitle: string;
+  imagePreviewAlt: string; // Added
   clearImageButton: string;
   informationStyleLabel: string;
   styleHistoricalLabel: string;
@@ -102,13 +102,17 @@ const translationsData: Record<Locale, TranslationKeys> = {
     toastNarrativeGeneratedDescription: (location) => `Your agent response for ${location || 'the location'} is ready.`,
     toastGenerationFailedTitle: 'Generation Failed',
     formTitle: 'Where are we exploring?',
-    formDescription: 'Tell us where you want to go by typing, using an image, or sharing your current location.',
+    formDescription: 'Describe the location, use your current position, or provide an image.',
     locationNameLabel: 'Location Name or Description',
     locationNamePlaceholder: 'e.g., Eiffel Tower, Paris',
     locationNameDescription: 'Type the name or a brief description of the location.',
     autocompleteLoading: 'Loading suggestions...',
     autocompleteNoResults: 'No results found.',
-    useCurrentLocationButton: 'Use My Current Location',
+    autocompleteErrorTitle: 'Autocomplete Error',
+    useCurrentLocationButton: 'Current Location',
+    scanWithCameraButton: 'Scan with Camera',
+    uploadImageButton: 'Upload Image',
+    cancelCameraButton: 'Cancel Camera',
     fetchingLocationButton: 'Fetching Location...',
     geolocationNotSupported: 'Geolocation is not supported by your browser.',
     geolocationPermissionDenied: 'Permission to access location was denied. Please enable it in your browser settings.',
@@ -119,16 +123,12 @@ const translationsData: Record<Locale, TranslationKeys> = {
     geolocationSuccessTitle: 'Location Acquired',
     geolocationSuccessDescription: 'Your current location will be sent to the agent.',
     geolocationCoordinates: 'Coordinates',
-    orSeparator: 'OR',
-    locationImageLabel: 'Location Image',
-    uploadImageTab: 'Upload Image',
-    useCameraTab: 'Use Camera',
-    uploadImageDescription: 'Upload a clear picture of the landmark or location.',
     cameraAccessProblemTitle: 'Camera Access Problem',
     cameraAccessProblemDescription: 'Could not access the camera. Please ensure permissions are granted.',
     cameraNotSupported: "Your browser does not support camera access.",
     captureImageButton: 'Capture Image',
     imagePreviewTitle: 'Image Preview:',
+    imagePreviewAlt: 'Preview of the uploaded or captured location image.',
     clearImageButton: 'Clear Image',
     informationStyleLabel: 'How do you want to hear the story?',
     styleHistoricalLabel: 'Historical',
@@ -186,13 +186,17 @@ const translationsData: Record<Locale, TranslationKeys> = {
     toastNarrativeGeneratedDescription: (location) => `La respuesta de tu agente para ${location || 'la ubicación'} está lista.`,
     toastGenerationFailedTitle: 'Falló la Generación',
     formTitle: '¿Dónde estamos explorando?',
-    formDescription: 'Dinos a dónde quieres ir escribiendo, usando una imagen o compartiendo tu ubicación actual.',
+    formDescription: 'Describe la ubicación, usa tu posición actual o proporciona una imagen.',
     locationNameLabel: 'Nombre o Descripción de la Ubicación',
     locationNamePlaceholder: 'Ej: Torre Eiffel, París',
     locationNameDescription: 'Escribe el nombre o una breve descripción de la ubicación.',
     autocompleteLoading: 'Cargando sugerencias...',
     autocompleteNoResults: 'No se encontraron resultados.',
-    useCurrentLocationButton: 'Usar Mi Ubicación Actual',
+    autocompleteErrorTitle: 'Error de Autocompletar',
+    useCurrentLocationButton: 'Ubicación Actual',
+    scanWithCameraButton: 'Escanear con Cámara',
+    uploadImageButton: 'Subir Imagen',
+    cancelCameraButton: 'Cancelar Cámara',
     fetchingLocationButton: 'Obteniendo Ubicación...',
     geolocationNotSupported: 'La geolocalización no es compatible con tu navegador.',
     geolocationPermissionDenied: 'Se denegó el permiso para acceder a la ubicación. Por favor, actívalo en la configuración de tu navegador.',
@@ -203,16 +207,12 @@ const translationsData: Record<Locale, TranslationKeys> = {
     geolocationSuccessTitle: 'Ubicación Adquirida',
     geolocationSuccessDescription: 'Tu ubicación actual se enviará al agente.',
     geolocationCoordinates: 'Coordenadas',
-    orSeparator: 'O',
-    locationImageLabel: 'Imagen de la Ubicación',
-    uploadImageTab: 'Subir Imagen',
-    useCameraTab: 'Usar Cámara',
-    uploadImageDescription: 'Sube una foto clara del lugar o punto de interés.',
     cameraAccessProblemTitle: 'Problema de Acceso a la Cámara',
     cameraAccessProblemDescription: 'No se pudo acceder a la cámara. Asegúrate de que los permisos estén concedidos.',
     cameraNotSupported: "Tu navegador no soporta el acceso a la cámara.",
     captureImageButton: 'Capturar Imagen',
     imagePreviewTitle: 'Vista Previa de Imagen:',
+    imagePreviewAlt: 'Vista previa de la imagen de ubicación cargada o capturada.',
     clearImageButton: 'Limpiar Imagen',
     informationStyleLabel: '¿Cómo quieres escuchar la historia?',
     styleHistoricalLabel: 'Histórico',
@@ -270,13 +270,17 @@ const translationsData: Record<Locale, TranslationKeys> = {
     toastNarrativeGeneratedDescription: (location) => `La réponse de votre agent pour ${location || "l'endroit"} est prête.`,
     toastGenerationFailedTitle: 'Échec de la Génération',
     formTitle: 'Où explorons-nous ?',
-    formDescription: "Dites-nous où vous voulez aller en tapant, en utilisant une image ou en partageant votre position actuelle.",
+    formDescription: "Décrivez l'endroit, utilisez votre position actuelle ou fournissez une image.",
     locationNameLabel: 'Nom ou Description du Lieu',
     locationNamePlaceholder: 'Ex: Tour Eiffel, Paris',
     locationNameDescription: 'Tapez le nom ou une brève description du lieu.',
     autocompleteLoading: 'Chargement des suggestions...',
     autocompleteNoResults: 'Aucun résultat trouvé.',
-    useCurrentLocationButton: 'Utiliser Ma Position Actuelle',
+    autocompleteErrorTitle: "Erreur d'Autocomplétion",
+    useCurrentLocationButton: 'Position Actuelle',
+    scanWithCameraButton: 'Scanner avec Caméra',
+    uploadImageButton: 'Télécharger Image',
+    cancelCameraButton: 'Annuler Caméra',
     fetchingLocationButton: 'Récupération Position...',
     geolocationNotSupported: 'La géolocalisation n’est pas supportée par votre navigateur.',
     geolocationPermissionDenied: 'L’autorisation d’accéder à la position a été refusée. Veuillez l’activer dans les paramètres de votre navigateur.',
@@ -287,16 +291,12 @@ const translationsData: Record<Locale, TranslationKeys> = {
     geolocationSuccessTitle: 'Position Acquise',
     geolocationSuccessDescription: 'Votre position actuelle sera envoyée à l’agent.',
     geolocationCoordinates: 'Coordonnées',
-    orSeparator: 'OU',
-    locationImageLabel: 'Image du Lieu',
-    uploadImageTab: 'Télécharger Image',
-    useCameraTab: 'Utiliser Caméra',
-    uploadImageDescription: 'Téléchargez une photo claire du lieu ou du point d’intérêt.',
     cameraAccessProblemTitle: "Problème d'Accès Caméra",
     cameraAccessProblemDescription: "Impossible d'accéder à la caméra. Veuillez vous assurer que les autorisations sont accordées.",
     cameraNotSupported: "Votre navigateur ne prend pas en charge l'accès à la caméra.",
     captureImageButton: "Capturer l'Image",
     imagePreviewTitle: 'Aperçu Image:',
+    imagePreviewAlt: "Aperçu de l'image de lieu téléchargée ou capturée.",
     clearImageButton: 'Effacer Image',
     informationStyleLabel: "Comment voulez-vous entendre l'histoire ?",
     styleHistoricalLabel: 'Historique',
@@ -352,3 +352,4 @@ export function useTranslations() {
   const { language } = useLanguage();
   return translationsData[language];
 }
+
