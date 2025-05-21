@@ -6,11 +6,14 @@ import { generateNarrative } from "@/ai/flows/narrative-generation";
 import type { GenerateNarrativeOutput } from "@/ai/flows/narrative-generation";
 import { narrationToAudio } from "@/ai/flows/narration-to-audio";
 import type { NarrationToAudioOutput } from "@/ai/flows/narration-to-audio";
+import { generateImageDescription } from "@/ai/flows/image-to-description-flow"; // New import
+import type { GenerateImageDescriptionOutput } from "@/ai/flows/image-to-description-flow"; // New import
 import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
 
 export interface TravelNarrativeResult {
   narrativeText: string;
   audioDataUri: string;
+  locationDescription: string; // Add this to display it in the UI
 }
 
 export async function generateTravelNarrativeAction(
@@ -20,31 +23,38 @@ export async function generateTravelNarrativeAction(
     // Validate input again on the server side
     const validation = narratorFormSchema.safeParse(values);
     if (!validation.success) {
-      // Construct a more detailed error message string
       const errorMessages = Object.entries(validation.error.flatten().fieldErrors)
         .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
         .join('; ');
       return { error: "Invalid input: " + errorMessages };
     }
 
-    const { locationDescription, informationStyle } = values;
+    const { imageDataUri, informationStyle } = values;
 
-    // 1. Generate Narrative Text
+    // 1. Get description from image
+    const imageDescriptionResult: GenerateImageDescriptionOutput = await generateImageDescription({
+      imageDataUri,
+    });
+
+    if (!imageDescriptionResult || !imageDescriptionResult.description) {
+      return { error: "Failed to get description from the provided image. Please try a different image or ensure it's clear." };
+    }
+    const identifiedLocationDescription = imageDescriptionResult.description;
+
+    // 2. Generate Narrative Text using the description from the image
     const narrativeResult: GenerateNarrativeOutput = await generateNarrative({
-      locationDescription,
+      locationDescription: identifiedLocationDescription,
       informationStyle,
     });
 
     if (!narrativeResult.narrativeText) {
-      return { error: "Failed to generate narrative text." };
+      return { error: "Failed to generate narrative text based on the image." };
     }
     
-    // 2. Convert Narrative to Audio
-    // The current AI flow for narrationToAudio doesn't use a specific voice from user preferences yet.
-    // We'll use a generic voice for now.
+    // 3. Convert Narrative to Audio
     const audioResult: NarrationToAudioOutput = await narrationToAudio({
       narratedText: narrativeResult.narrativeText,
-      voice: "default", // Placeholder, can be enhanced later
+      voice: "default", 
     });
 
     if (!audioResult.audioDataUri) {
@@ -54,9 +64,14 @@ export async function generateTravelNarrativeAction(
     return {
       narrativeText: narrativeResult.narrativeText,
       audioDataUri: audioResult.audioDataUri,
+      locationDescription: identifiedLocationDescription, // Return the identified location
     };
   } catch (error) {
     console.error("Error in generateTravelNarrativeAction:", error);
-    return { error: "An unexpected error occurred. Please try again." };
+    let errorMessage = "An unexpected error occurred. Please try again.";
+    if (error instanceof Error) {
+        errorMessage = error.message;
+    }
+    return { error: errorMessage };
   }
 }

@@ -1,3 +1,4 @@
+
 // src/app/page.tsx
 "use client";
 
@@ -8,7 +9,7 @@ import { NarrativeDisplay } from "@/components/app/NarrativeDisplay";
 import { LoadingSpinner } from "@/components/app/LoadingSpinner";
 import { PlaceholderCard } from "@/components/app/PlaceholderCard";
 import { useToast } from "@/hooks/use-toast";
-import type { TravelNarrativeResult } from "./actions";
+import type { TravelNarrativeResult } from "./actions"; // This type was extended
 
 export default function HomePage() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -22,7 +23,7 @@ export default function HomePage() {
 
   const handleGenerationStart = () => {
     setIsGenerating(true);
-    setNarrativeResult(null); // Clear previous results
+    setNarrativeResult(null); 
   };
 
   const handleGenerationComplete = (data: TravelNarrativeResult) => {
@@ -30,7 +31,7 @@ export default function HomePage() {
     setNarrativeResult(data);
     toast({
       title: "Narrative Generated!",
-      description: "Your personalized tour is ready.",
+      description: `Your personalized tour for ${data.locationDescription || 'the location'} is ready.`,
     });
   };
 
@@ -64,6 +65,7 @@ export default function HomePage() {
                 <NarrativeDisplay
                   narrativeText={narrativeResult.narrativeText}
                   audioDataUri={narrativeResult.audioDataUri}
+                  locationDescription={narrativeResult.locationDescription}
                 />
               ) : (
                 <PlaceholderCard />
