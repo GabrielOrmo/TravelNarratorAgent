@@ -1,0 +1,289 @@
+
+import type { Locale } from '@/contexts/LanguageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+
+type TranslationKeys = {
+  // Header
+  appSubtitle: string;
+  // Page
+  footerCopyright: string;
+  toastNarrativeGeneratedTitle: string;
+  toastNarrativeGeneratedDescription: (location: string) => string;
+  toastGenerationFailedTitle: string;
+  // NarratorForm
+  formTitle: string;
+  formDescription: string;
+  locationNameLabel: string;
+  locationNamePlaceholder: string;
+  locationNameDescription: string;
+  orSeparator: string;
+  locationImageLabel: string;
+  uploadImageTab: string;
+  useCameraTab: string;
+  uploadImageDescription: string;
+  cameraAccessProblemTitle: string;
+  cameraAccessProblemDescription: string;
+  captureImageButton: string;
+  imagePreviewTitle: string;
+  clearImageButton: string;
+  informationStyleLabel: string;
+  styleHistoricalLabel: string;
+  styleHistoricalDescription: string;
+  styleCuriousLabel: string;
+  styleCuriousDescription: string;
+  styleLegendsLabel: string;
+  styleLegendsDescription: string;
+  generateNarrativeButton: string;
+  generatingButton: string;
+  // NarratorForm Skeletons (simple, usually not translated or generic)
+  loadingYear: string;
+  // NarrativeDisplay
+  narrativeDisplayTitle: string;
+  narrativeDisplayDescription: string;
+  identifiedLocationLabel: string;
+  audioNarrationLabel: string;
+  audioNotSupported: string;
+  narrativeTextLabel: string;
+  noNarrativeText: string;
+  followUpQuestionLabel: string;
+  micIssueAlertTitle: string;
+  micIssueAlertDescription: (error: string) => string;
+  followUpPlaceholder: string;
+  stopRecordingButtonAria: string;
+  startRecordingButtonAria: string;
+  submitQuestionButton: string;
+  gettingAnswerButton: string;
+  aiThinking: string;
+  yourQuestionLabel: string;
+  aiAnswerLabel: string;
+  followUpFailedToastTitle: string;
+  followUpAnswerReadyToastTitle: string;
+  followUpAnswerReadyToastDescription: string;
+  narrativeDisplayFooter: string;
+  emptyQuestionToastTitle: string;
+  emptyQuestionToastDescription: string;
+  voiceInputNotReadyToastTitle: string;
+  voiceInputNotReadyToastDescription: (error: string) => string;
+  micDeniedToastTitle: string;
+  micDeniedToastDescription: string;
+  speechErrorToastTitle: string;
+  speechErrorToastDescription: (error: string) => string;
+  couldNotStartRecordingToastTitle: string;
+  couldNotStartRecordingToastDescription: (error: string) => string;
+
+
+  // PlaceholderCard
+  placeholderCardTitle: string;
+  placeholderCardDescription: string;
+  // LoadingSpinner
+  loadingSpinnerText: string;
+};
+
+const translationsData: Record<Locale, TranslationKeys> = {
+  en: {
+    appSubtitle: 'Your personal AI-powered axolotl travel tour guide.',
+    footerCopyright: 'Aijolot Travel Guide. AI-powered by Genkit.',
+    toastNarrativeGeneratedTitle: 'Narrative Generated!',
+    toastNarrativeGeneratedDescription: (location) => `Your personalized tour for ${location || 'the location'} is ready.`,
+    toastGenerationFailedTitle: 'Generation Failed',
+    formTitle: 'Describe Your Destination',
+    formDescription: 'Enter a location name or use an image. Then, choose your narration style.',
+    locationNameLabel: 'Location Name or Description',
+    locationNamePlaceholder: 'e.g., Eiffel Tower, Paris',
+    locationNameDescription: 'Type the name or a brief description of the location.',
+    orSeparator: 'OR',
+    locationImageLabel: 'Location Image',
+    uploadImageTab: 'Upload Image',
+    useCameraTab: 'Use Camera',
+    uploadImageDescription: 'Upload a clear picture of the landmark or location.',
+    cameraAccessProblemTitle: 'Camera Access Problem',
+    cameraAccessProblemDescription: 'Could not access the camera. Please ensure permissions are granted. You can still upload or type the location.',
+    captureImageButton: 'Capture Image',
+    imagePreviewTitle: 'Image Preview:',
+    clearImageButton: 'Clear Image',
+    informationStyleLabel: 'Information Style',
+    styleHistoricalLabel: 'Historical',
+    styleHistoricalDescription: 'Focus on facts, dates, and historical significance.',
+    styleCuriousLabel: 'Curious',
+    styleCuriousDescription: 'Uncover interesting tidbits and unusual details.',
+    styleLegendsLabel: 'Legends',
+    styleLegendsDescription: 'Explore myths, folklore, and captivating stories.',
+    generateNarrativeButton: 'Generate Narrative',
+    generatingButton: 'Generating...',
+    loadingYear: 'Loading year...',
+    narrativeDisplayTitle: 'Your Personalized Tour',
+    narrativeDisplayDescription: 'Listen to the generated narrative for your selected location and ask follow-up questions.',
+    identifiedLocationLabel: 'Identified Location:',
+    audioNarrationLabel: 'Audio Narration',
+    audioNotSupported: 'Your browser does not support the audio element.',
+    narrativeTextLabel: 'Narrative Text',
+    noNarrativeText: 'No narrative text available.',
+    followUpQuestionLabel: 'Ask a Follow-up Question',
+    micIssueAlertTitle: 'Microphone Issue',
+    micIssueAlertDescription: (error) => error,
+    followUpPlaceholder: 'Type your question or use the microphone...',
+    stopRecordingButtonAria: 'Stop recording',
+    startRecordingButtonAria: 'Start recording',
+    submitQuestionButton: 'Submit Question',
+    gettingAnswerButton: 'Getting Answer...',
+    aiThinking: 'AI is thinking...',
+    yourQuestionLabel: 'Your Question:',
+    aiAnswerLabel: "AI's Answer:",
+    followUpFailedToastTitle: 'Follow-up Failed',
+    followUpAnswerReadyToastTitle: 'Follow-up Answer Ready!',
+    followUpAnswerReadyToastDescription: 'Your question has been answered.',
+    narrativeDisplayFooter: 'Narrative, answers, and audio generated by AI. Enjoy your virtual tour!',
+    emptyQuestionToastTitle: 'Empty Question',
+    emptyQuestionToastDescription: 'Please ask a question.',
+    voiceInputNotReadyToastTitle: "Voice Input Not Ready",
+    voiceInputNotReadyToastDescription: (error) => error || "Speech recognition is not available.",
+    micDeniedToastTitle: "Microphone Access Denied",
+    micDeniedToastDescription: "Please enable microphone permissions in your browser settings.",
+    speechErrorToastTitle: "Speech Recognition Error",
+    speechErrorToastDescription: (error) => `Could not process audio: ${error}`,
+    couldNotStartRecordingToastTitle: "Could Not Start Recording",
+    couldNotStartRecordingToastDescription: (error) => error || "Unknown error starting voice input.",
+    placeholderCardTitle: 'Ready to Explore?',
+    placeholderCardDescription: "Enter a location description and choose your preferred narration style to get started. We'll craft a unique audio guide just for you!",
+    loadingSpinnerText: 'Generating your personalized tour...',
+  },
+  es: {
+    appSubtitle: 'Tu guía turístico personal axolotl impulsado por IA.',
+    footerCopyright: 'Aijolot Travel Guide. IA impulsada por Genkit.',
+    toastNarrativeGeneratedTitle: '¡Narrativa Generada!',
+    toastNarrativeGeneratedDescription: (location) => `Tu recorrido personalizado para ${location || 'la ubicación'} está listo.`,
+    toastGenerationFailedTitle: 'Falló la Generación',
+    formTitle: 'Describe Tu Destino',
+    formDescription: 'Ingresa el nombre de una ubicación o usa una imagen. Luego, elige tu estilo de narración.',
+    locationNameLabel: 'Nombre o Descripción de la Ubicación',
+    locationNamePlaceholder: 'Ej: Torre Eiffel, París',
+    locationNameDescription: 'Escribe el nombre o una breve descripción de la ubicación.',
+    orSeparator: 'O',
+    locationImageLabel: 'Imagen de la Ubicación',
+    uploadImageTab: 'Subir Imagen',
+    useCameraTab: 'Usar Cámara',
+    uploadImageDescription: 'Sube una foto clara del lugar o punto de interés.',
+    cameraAccessProblemTitle: 'Problema de Acceso a la Cámara',
+    cameraAccessProblemDescription: 'No se pudo acceder a la cámara. Asegúrate de que los permisos estén concedidos. Aún puedes subir o escribir la ubicación.',
+    captureImageButton: 'Capturar Imagen',
+    imagePreviewTitle: 'Vista Previa de Imagen:',
+    clearImageButton: 'Limpiar Imagen',
+    informationStyleLabel: 'Estilo de Información',
+    styleHistoricalLabel: 'Histórico',
+    styleHistoricalDescription: 'Enfócate en hechos, fechas y significado histórico.',
+    styleCuriousLabel: 'Curioso',
+    styleCuriousDescription: 'Descubre datos interesantes y detalles inusuales.',
+    styleLegendsLabel: 'Leyendas',
+    styleLegendsDescription: 'Explora mitos, folclore e historias cautivadoras.',
+    generateNarrativeButton: 'Generar Narrativa',
+    generatingButton: 'Generando...',
+    loadingYear: 'Cargando año...',
+    narrativeDisplayTitle: 'Tu Recorrido Personalizado',
+    narrativeDisplayDescription: 'Escucha la narrativa generada para la ubicación seleccionada y haz preguntas de seguimiento.',
+    identifiedLocationLabel: 'Ubicación Identificada:',
+    audioNarrationLabel: 'Narración en Audio',
+    audioNotSupported: 'Tu navegador no soporta el elemento de audio.',
+    narrativeTextLabel: 'Texto de la Narrativa',
+    noNarrativeText: 'No hay texto de narrativa disponible.',
+    followUpQuestionLabel: 'Haz una Pregunta de Seguimiento',
+    micIssueAlertTitle: 'Problema con el Micrófono',
+    micIssueAlertDescription: (error) => error,
+    followUpPlaceholder: 'Escribe tu pregunta o usa el micrófono...',
+    stopRecordingButtonAria: 'Detener grabación',
+    startRecordingButtonAria: 'Iniciar grabación',
+    submitQuestionButton: 'Enviar Pregunta',
+    gettingAnswerButton: 'Obteniendo Respuesta...',
+    aiThinking: 'IA está pensando...',
+    yourQuestionLabel: 'Tu Pregunta:',
+    aiAnswerLabel: 'Respuesta de la IA:',
+    followUpFailedToastTitle: 'Pregunta de Seguimiento Fallida',
+    followUpAnswerReadyToastTitle: '¡Respuesta Lista!',
+    followUpAnswerReadyToastDescription: 'Tu pregunta ha sido respondida.',
+    narrativeDisplayFooter: 'Narrativa, respuestas y audio generados por IA. ¡Disfruta tu recorrido virtual!',
+    emptyQuestionToastTitle: 'Pregunta Vacía',
+    emptyQuestionToastDescription: 'Por favor haz una pregunta.',
+    voiceInputNotReadyToastTitle: "Entrada de Voz No Lista",
+    voiceInputNotReadyToastDescription: (error) => error || "El reconocimiento de voz no está disponible.",
+    micDeniedToastTitle: "Acceso al Micrófono Denegado",
+    micDeniedToastDescription: "Por favor, habilita los permisos del micrófono en la configuración de tu navegador.",
+    speechErrorToastTitle: "Error de Reconocimiento de Voz",
+    speechErrorToastDescription: (error) => `No se pudo procesar el audio: ${error}`,
+    couldNotStartRecordingToastTitle: "No se Pudo Iniciar la Grabación",
+    couldNotStartRecordingToastDescription: (error) => error || "Error desconocido al iniciar la entrada de voz.",
+    placeholderCardTitle: '¿Listo para Explorar?',
+    placeholderCardDescription: 'Ingresa la descripción de una ubicación y elige tu estilo de narración preferido para comenzar. ¡Crearemos una audioguía única solo para ti!',
+    loadingSpinnerText: 'Generando tu recorrido personalizado...',
+  },
+  fr: {
+    appSubtitle: 'Votre guide touristique personnel axolotl alimenté par IA.',
+    footerCopyright: 'Aijolot Travel Guide. IA alimentée par Genkit.',
+    toastNarrativeGeneratedTitle: 'Narration Générée !',
+    toastNarrativeGeneratedDescription: (location) => `Votre visite personnalisée pour ${location || "l'endroit"} est prête.`,
+    toastGenerationFailedTitle: 'Échec de la Génération',
+    formTitle: 'Décrivez Votre Destination',
+    formDescription: "Entrez un nom de lieu ou utilisez une image. Ensuite, choisissez votre style de narration.",
+    locationNameLabel: 'Nom ou Description du Lieu',
+    locationNamePlaceholder: 'Ex: Tour Eiffel, Paris',
+    locationNameDescription: 'Tapez le nom ou une brève description du lieu.',
+    orSeparator: 'OU',
+    locationImageLabel: 'Image du Lieu',
+    uploadImageTab: 'Télécharger Image',
+    useCameraTab: 'Utiliser Caméra',
+    uploadImageDescription: 'Téléchargez une photo claire du lieu ou du point d’intérêt.',
+    cameraAccessProblemTitle: "Problème d'Accès Caméra",
+    cameraAccessProblemDescription: "Impossible d'accéder à la caméra. Veuillez vous assurer que les autorisations sont accordées. Vous pouvez toujours télécharger ou taper le lieu.",
+    captureImageButton: "Capturer l'Image",
+    imagePreviewTitle: 'Aperçu Image:',
+    clearImageButton: 'Effacer Image',
+    informationStyleLabel: "Style d'Information",
+    styleHistoricalLabel: 'Historique',
+    styleHistoricalDescription: 'Concentrez-vous sur les faits, les dates et la signification historique.',
+    styleCuriousLabel: 'Curieux',
+    styleCuriousDescription: 'Découvrez des anecdotes intéressantes et des détails insolites.',
+    styleLegendsLabel: 'Légendes',
+    styleLegendsDescription: 'Explorez les mythes, le folklore et les histoires captivantes.',
+    generateNarrativeButton: 'Générer Narration',
+    generatingButton: 'Génération...',
+    loadingYear: "Chargement de l'année...",
+    narrativeDisplayTitle: 'Votre Visite Personnalisée',
+    narrativeDisplayDescription: "Écoutez la narration générée pour le lieu sélectionné et posez des questions de suivi.",
+    identifiedLocationLabel: 'Lieu Identifié:',
+    audioNarrationLabel: 'Narration Audio',
+    audioNotSupported: "Votre navigateur ne supporte pas l'élément audio.",
+    narrativeTextLabel: 'Texte Narratif',
+    noNarrativeText: 'Aucun texte narratif disponible.',
+    followUpQuestionLabel: 'Poser une Question de Suivi',
+    micIssueAlertTitle: 'Problème de Microphone',
+    micIssueAlertDescription: (error) => error,
+    followUpPlaceholder: 'Tapez votre question ou utilisez le microphone...',
+    stopRecordingButtonAria: "Arrêter l'enregistrement",
+    startRecordingButtonAria: "Démarrer l'enregistrement",
+    submitQuestionButton: 'Soumettre Question',
+    gettingAnswerButton: 'Obtention Réponse...',
+    aiThinking: "L'IA réfléchit...",
+    yourQuestionLabel: 'Votre Question:',
+    aiAnswerLabel: 'Réponse de lIA:',
+    followUpFailedToastTitle: 'Échec Question Suivi',
+    followUpAnswerReadyToastTitle: 'Réponse Prête !',
+    followUpAnswerReadyToastDescription: 'Votre question a été répondue.',
+    narrativeDisplayFooter: "Narration, réponses et audio générés par IA. Profitez de votre visite virtuelle !",
+    emptyQuestionToastTitle: 'Question Vide',
+    emptyQuestionToastDescription: 'Veuillez poser une question.',
+    voiceInputNotReadyToastTitle: "Entrée Vocale Non Prête",
+    voiceInputNotReadyToastDescription: (error) => error || "La reconnaissance vocale n'est pas disponible.",
+    micDeniedToastTitle: "Accès Microphone Refusé",
+    micDeniedToastDescription: "Veuillez activer les autorisations du microphone dans les paramètres de votre navigateur.",
+    speechErrorToastTitle: "Erreur de Reconnaissance Vocale",
+    speechErrorToastDescription: (error) => `Impossible de traiter l'audio: ${error}`,
+    couldNotStartRecordingToastTitle: "Impossible de Démarrer l'Enregistrement",
+    couldNotStartRecordingToastDescription: (error) => error || "Erreur inconnue lors du démarrage de l'entrée vocale.",
+    placeholderCardTitle: 'Prêt à Explorer ?',
+    placeholderCardDescription: "Entrez une description de lieu et choisissez votre style de narration préféré pour commencer. Nous créerons un audioguide unique juste pour vous !",
+    loadingSpinnerText: 'Génération de votre visite personnalisée...',
+  },
+};
+
+export function useTranslations() {
+  const { language } = useLanguage();
+  return translationsData[language];
+}

@@ -4,10 +4,11 @@ import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import { LanguageProvider } from '@/contexts/LanguageContext';
 
 export const metadata: Metadata = {
-  title: 'TravelNarrator',
-  description: 'Your personal AI-powered travel tour guide.',
+  title: 'Aijolot Travel Guide',
+  description: 'Your personal AI-powered axolotl travel tour guide.',
 };
 
 export default function RootLayout({
@@ -21,8 +22,10 @@ export default function RootLayout({
         className={`${GeistSans.variable} ${GeistMono.variable} antialiased`} 
         suppressHydrationWarning
       >
-        {children}
-        <Toaster />
+        <LanguageProvider>
+          {children}
+          <Toaster />
+        </LanguageProvider>
       </body>
     </html>
   );

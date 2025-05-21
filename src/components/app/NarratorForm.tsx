@@ -1,12 +1,11 @@
 
-// src/components/app/NarratorForm.tsx
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Wand2, Info, Newspaper, Castle, HelpCircle, Upload, Camera, Image as ImageIcon, AlertTriangle, Search, MapPin, Languages } from "lucide-react";
+import { Wand2, Castle, HelpCircle, Newspaper, Upload, Camera, Image as ImageIcon, AlertTriangle, Search, MapPin } from "lucide-react";
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import Image from "next/image";
+import NextImage from "next/image"; // Renamed to avoid conflict
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,35 +23,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import type { TravelNarrativeResult } from "@/app/actions";
 import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
-
-const informationStyles = [
-  { id: "Historical", label: "Historical", description: "Focus on facts, dates, and historical significance.", icon: Castle },
-  { id: "Curious", label: "Curious", description: "Uncover interesting tidbits and unusual details.", icon: HelpCircle },
-  { id: "Legends", label: "Legends", description: "Explore myths, folklore, and captivating stories.", icon: Newspaper },
-] as const;
-
-const outputLanguages = [
-  { value: "en", label: "English" },
-  { value: "es", label: "Español (Spanish)" },
-  { value: "fr", label: "Français (French)" },
-  { value: "de", label: "Deutsch (German)" },
-  { value: "it", label: "Italiano (Italian)" },
-  { value: "pt", label: "Português (Portuguese)" },
-  { value: "ja", label: "日本語 (Japanese)" },
-  { value: "ko", label: "한국어 (Korean)" },
-  { value: "zh-CN", label: "简体中文 (Simplified Chinese)" },
-];
+import { useLanguage, type Locale } from "@/contexts/LanguageContext";
+import { useTranslations } from "@/lib/translations";
 
 interface NarratorFormProps {
   onGenerationStart: () => void;
   onGenerationComplete: (data: TravelNarrativeResult) => void;
   onGenerationError: (message: string) => void;
   isGenerating: boolean;
+  currentLanguage: Locale; // Receive current language
 }
 
 export function NarratorForm({
@@ -60,8 +43,10 @@ export function NarratorForm({
   onGenerationComplete,
   onGenerationError,
   isGenerating,
+  currentLanguage,
 }: NarratorFormProps) {
   const { toast } = useToast();
+  const t = useTranslations();
   const [isMounted, setIsMounted] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"upload" | "camera">("upload");
@@ -70,13 +55,19 @@ export function NarratorForm({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const informationStyles = [
+    { id: "Historical", label: t.styleHistoricalLabel, description: t.styleHistoricalDescription, icon: Castle },
+    { id: "Curious", label: t.styleCuriousLabel, description: t.styleCuriousDescription, icon: HelpCircle },
+    { id: "Legends", label: t.styleLegendsLabel, description: t.styleLegendsDescription, icon: Newspaper },
+  ] as const;
+
+
   const form = useForm<NarratorFormValues>({
     resolver: zodResolver(narratorFormSchema),
     defaultValues: {
       imageDataUri: undefined,
       locationQuery: undefined,
       informationStyle: "Curious",
-      outputLanguage: "en",
     },
   });
 
@@ -111,22 +102,22 @@ export function NarratorForm({
         setHasCameraPermission(false);
         toast({
           variant: 'destructive',
-          title: 'Camera Access Denied',
-          description: 'Please enable camera permissions in your browser settings.',
+          title: t.cameraAccessProblemTitle,
+          description: t.cameraAccessProblemDescription,
         });
       }
     } else {
         setHasCameraPermission(false);
          toast({
           variant: 'destructive',
-          title: 'Camera Not Supported',
-          description: 'Your browser does not support camera access.',
+          title: t.cameraAccessProblemTitle,
+          description: "Your browser does not support camera access.", // Generic, or add to translations
         });
     }
-  }, [toast]);
+  }, [toast, t]);
 
   useEffect(() => {
-    if (activeTab === "camera" && hasCameraPermission === null && isMounted) { // Ensure isMounted before starting camera
+    if (activeTab === "camera" && hasCameraPermission === null && isMounted) { 
       startCamera();
     }
     return () => {
@@ -163,7 +154,8 @@ export function NarratorForm({
     onGenerationStart();
     try {
       const { generateTravelNarrativeAction } = await import("@/app/actions");
-      const result = await generateTravelNarrativeAction(data);
+      // Pass currentLanguage to the action
+      const result = await generateTravelNarrativeAction(data, currentLanguage);
       if ("error" in result) {
         onGenerationError(result.error);
       } else {
@@ -178,7 +170,7 @@ export function NarratorForm({
     setImagePreview(null);
     form.setValue("imageDataUri", undefined, { shouldValidate: true });
     if(fileInputRef.current) fileInputRef.current.value = "";
-     if (activeTab === "camera" && hasCameraPermission && isMounted) { // Ensure isMounted
+     if (activeTab === "camera" && hasCameraPermission && isMounted) {
           startCamera();
      }
   }
@@ -187,49 +179,36 @@ export function NarratorForm({
     return (
       <Card className="shadow-lg w-full">
         <CardHeader>
-          <Skeleton className="h-6 w-3/4" /> {/* Title */}
-          <Skeleton className="h-4 w-1/2 mt-1" /> {/* Description */}
+          <Skeleton className="h-6 w-3/4" />
+          <Skeleton className="h-4 w-1/2 mt-1" />
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Location Query */}
           <div className="space-y-2">
-            <Skeleton className="h-5 w-1/3" /> {/* Label */}
-            <Skeleton className="h-10 w-full" /> {/* Input */}
+            <Skeleton className="h-5 w-1/3" />
+            <Skeleton className="h-10 w-full" />
           </div>
-
-          {/* Separator */}
           <div className="flex items-center space-x-2 py-2">
             <Skeleton className="h-px flex-grow" />
-            <span className="text-sm text-muted-foreground">OR</span>
+            <span className="text-sm text-muted-foreground">{t.orSeparator}</span>
             <Skeleton className="h-px flex-grow" />
           </div>
-          
-          {/* Location Image */}
           <div className="space-y-2">
-            <Skeleton className="h-5 w-1/3" /> {/* Label */}
-            <div className="grid grid-cols-2 gap-2 mb-2"> {/* TabsList imitation */}
+            <Skeleton className="h-5 w-1/3" />
+            <div className="grid grid-cols-2 gap-2 mb-2">
                  <Skeleton className="h-10 w-full" />
                  <Skeleton className="h-10 w-full" />
             </div>
-            <Skeleton className="h-10 w-full" /> {/* Input file / Button capture */}
+            <Skeleton className="h-10 w-full" />
           </div>
-
-          {/* Information Style */}
           <div className="space-y-3">
-            <Skeleton className="h-5 w-1/3 mb-2" /> {/* Label */}
-            <Skeleton className="h-16 w-full rounded-md border p-3" /> {/* Radio Item 1 */}
-            <Skeleton className="h-16 w-full rounded-md border p-3 mt-2" /> {/* Radio Item 2 */}
-            <Skeleton className="h-16 w-full rounded-md border p-3 mt-2" /> {/* Radio Item 3 */}
-          </div>
-
-          {/* Output Language */}
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-1/3" /> {/* Label */}
-            <Skeleton className="h-10 w-full" /> {/* Select */}
+            <Skeleton className="h-5 w-1/3 mb-2" />
+            <Skeleton className="h-16 w-full rounded-md border p-3" />
+            <Skeleton className="h-16 w-full rounded-md border p-3 mt-2" />
+            <Skeleton className="h-16 w-full rounded-md border p-3 mt-2" />
           </div>
         </CardContent>
         <CardFooter>
-          <Skeleton className="h-10 w-full" /> {/* Button */}
+          <Skeleton className="h-10 w-full" />
         </CardFooter>
       </Card>
     );
@@ -240,10 +219,10 @@ export function NarratorForm({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MapPin className="h-6 w-6 text-primary" />
-          <span>Describe Your Destination</span>
+          <span>{t.formTitle}</span>
         </CardTitle>
         <CardDescription>
-          Enter a location name or use an image. Then, choose your narration style and language.
+          {t.formDescription}
         </CardDescription>
       </CardHeader>
       <Form {...form}>
@@ -256,12 +235,12 @@ export function NarratorForm({
                 <FormItem>
                   <FormLabel className="flex items-center gap-2">
                     <Search className="h-5 w-5" />
-                    Location Name or Description
+                    {t.locationNameLabel}
                   </FormLabel>
                   <FormControl>
                     <Input
                       type="text"
-                      placeholder="e.g., Eiffel Tower, Paris"
+                      placeholder={t.locationNamePlaceholder}
                       {...field}
                       value={field.value ?? ""}
                       onChange={(e) => {
@@ -273,7 +252,7 @@ export function NarratorForm({
                     />
                   </FormControl>
                   <FormDescription>
-                    Type the name or a brief description of the location.
+                    {t.locationNameDescription}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -282,7 +261,7 @@ export function NarratorForm({
 
             <div className="flex items-center space-x-2">
               <Separator className="flex-grow" />
-              <span className="text-sm text-muted-foreground">OR</span>
+              <span className="text-sm text-muted-foreground">{t.orSeparator}</span>
               <Separator className="flex-grow" />
             </div>
             
@@ -293,12 +272,12 @@ export function NarratorForm({
                 <FormItem>
                   <FormLabel  className="flex items-center gap-2">
                     <ImageIcon className="h-5 w-5" /> 
-                    Location Image
+                    {t.locationImageLabel}
                   </FormLabel>
                   <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "upload" | "camera")} className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="upload"><Upload className="mr-2 h-4 w-4" />Upload Image</TabsTrigger>
-                      <TabsTrigger value="camera"><Camera className="mr-2 h-4 w-4" />Use Camera</TabsTrigger>
+                      <TabsTrigger value="upload"><Upload className="mr-2 h-4 w-4" />{t.uploadImageTab}</TabsTrigger>
+                      <TabsTrigger value="camera"><Camera className="mr-2 h-4 w-4" />{t.useCameraTab}</TabsTrigger>
                     </TabsList>
                     <TabsContent value="upload" className="mt-4">
                       <FormControl>
@@ -311,16 +290,16 @@ export function NarratorForm({
                         />
                       </FormControl>
                       <FormDescription className="mt-2">
-                        Upload a clear picture of the landmark or location.
+                        {t.uploadImageDescription}
                       </FormDescription>
                     </TabsContent>
                     <TabsContent value="camera" className="mt-4 space-y-4">
                         {hasCameraPermission === false && (
                              <Alert variant="destructive">
                                 <AlertTriangle className="h-4 w-4" />
-                                <AlertTitle>Camera Access Problem</AlertTitle>
+                                <AlertTitle>{t.cameraAccessProblemTitle}</AlertTitle>
                                 <AlertDescription>
-                                Could not access the camera. Please ensure permissions are granted. You can still upload or type the location.
+                                {t.cameraAccessProblemDescription}
                                 </AlertDescription>
                             </Alert>
                         )}
@@ -336,18 +315,18 @@ export function NarratorForm({
                             <canvas ref={canvasRef} style={{ display: 'none' }} />
                         </div>
                         <Button type="button" onClick={handleCaptureImage} disabled={isGenerating || hasCameraPermission === false || !videoRef.current?.srcObject} className="w-full">
-                            <Camera className="mr-2 h-4 w-4" /> Capture Image
+                            <Camera className="mr-2 h-4 w-4" /> {t.captureImageButton}
                         </Button>
                     </TabsContent>
                   </Tabs>
                   {imagePreview && (
                     <div className="mt-4 space-y-2">
-                      <h4 className="text-sm font-medium">Image Preview:</h4>
+                      <h4 className="text-sm font-medium">{t.imagePreviewTitle}</h4>
                       <div className="relative w-full aspect-video border rounded-md overflow-hidden">
-                        <Image src={imagePreview} alt="Selected location preview" layout="fill" objectFit="contain" data-ai-hint="landmark photo" />
+                        <NextImage src={imagePreview} alt="Selected location preview" layout="fill" objectFit="contain" data-ai-hint="landmark photo" />
                       </div>
                       <Button variant="outline" size="sm" onClick={clearImage}>
-                        Clear Image
+                        {t.clearImageButton}
                       </Button>
                     </div>
                   )}
@@ -361,7 +340,7 @@ export function NarratorForm({
               name="informationStyle"
               render={({ field }) => (
                 <FormItem className="space-y-3">
-                  <FormLabel>Information Style</FormLabel>
+                  <FormLabel>{t.informationStyleLabel}</FormLabel>
                   <FormControl>
                     <RadioGroup
                       onValueChange={field.onChange}
@@ -390,43 +369,12 @@ export function NarratorForm({
                 </FormItem>
               )}
             />
-
-            <FormField
-              control={form.control}
-              name="outputLanguage"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Languages className="h-5 w-5" />
-                    Output Language
-                  </FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a language" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {outputLanguages.map((lang) => (
-                        <SelectItem key={lang.value} value={lang.value}>
-                          {lang.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Choose the language for the generated narrative.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
+            {/* Removed Output Language Selector from here */}
           </CardContent>
           <CardFooter>
             <Button type="submit" disabled={isGenerating || !form.formState.isValid} className="w-full">
               <Wand2 className="mr-2 h-4 w-4" />
-              {isGenerating ? "Generating..." : "Generate Narrative"}
+              {isGenerating ? t.generatingButton : t.generateNarrativeButton}
             </Button>
           </CardFooter>
         </form>
@@ -434,4 +382,3 @@ export function NarratorForm({
     </Card>
   );
 }
-

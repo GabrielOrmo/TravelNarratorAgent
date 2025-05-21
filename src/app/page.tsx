@@ -1,5 +1,4 @@
 
-// src/app/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -10,12 +9,16 @@ import { LoadingSpinner } from "@/components/app/LoadingSpinner";
 import { PlaceholderCard } from "@/components/app/PlaceholderCard";
 import { useToast } from "@/hooks/use-toast";
 import type { TravelNarrativeResult } from "./actions"; 
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useTranslations } from "@/lib/translations";
 
 export default function HomePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [narrativeResult, setNarrativeResult] = useState<TravelNarrativeResult | null>(null);
   const [currentYear, setCurrentYear] = useState<number | null>(null);
   const { toast } = useToast();
+  const { language } = useLanguage(); // Get current language
+  const t = useTranslations(); // Get translations
 
   useEffect(() => {
     setCurrentYear(new Date().getFullYear());
@@ -28,10 +31,10 @@ export default function HomePage() {
 
   const handleGenerationComplete = (data: TravelNarrativeResult) => {
     setIsGenerating(false);
-    setNarrativeResult(data); // data now includes outputLanguage
+    setNarrativeResult(data);
     toast({
-      title: "Narrative Generated!",
-      description: `Your personalized tour for ${data.locationDescription || 'the location'} is ready.`,
+      title: t.toastNarrativeGeneratedTitle,
+      description: t.toastNarrativeGeneratedDescription(data.locationDescription),
     });
   };
 
@@ -39,7 +42,7 @@ export default function HomePage() {
     setIsGenerating(false);
     toast({
       variant: "destructive",
-      title: "Generation Failed",
+      title: t.toastGenerationFailedTitle,
       description: message,
     });
   };
@@ -56,6 +59,7 @@ export default function HomePage() {
                 onGenerationComplete={handleGenerationComplete}
                 onGenerationError={handleGenerationError}
                 isGenerating={isGenerating}
+                currentLanguage={language} // Pass current language
               />
             </div>
             <div className="w-full max-w-lg mx-auto lg:max-w-none lg:mx-0">
@@ -66,7 +70,7 @@ export default function HomePage() {
                   narrativeText={narrativeResult.narrativeText}
                   audioDataUri={narrativeResult.audioDataUri}
                   locationDescription={narrativeResult.locationDescription}
-                  outputLanguage={narrativeResult.outputLanguage} // Pass outputLanguage
+                  outputLanguage={narrativeResult.outputLanguage} 
                 />
               ) : (
                 <PlaceholderCard />
@@ -76,9 +80,8 @@ export default function HomePage() {
         </main>
       </div>
       <footer className="text-center p-4 text-sm text-muted-foreground border-t">
-        {currentYear !== null ? `© ${currentYear} TravelNarrator. AI-powered by Genkit.` : 'Loading year...'}
+        {currentYear !== null ? `© ${currentYear} ${t.footerCopyright}` : t.loadingYear}
       </footer>
     </div>
   );
 }
-

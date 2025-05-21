@@ -1,5 +1,4 @@
 
-// src/components/app/NarrativeDisplay.tsx
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -9,22 +8,26 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { BotMessageSquare, Volume2, MapPin, Mic, CornerDownLeft, User, AlertTriangle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { generateFollowUpAnswerAction, type FollowUpResult } from "@/app/actions";
+import { generateFollowUpAnswerAction, type FollowUpResult, type FollowUpServerInput } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useTranslations } from "@/lib/translations";
 
 interface NarrativeDisplayProps {
   narrativeText: string;
   audioDataUri: string;
   locationDescription: string; 
-  outputLanguage: string; // Added outputLanguage
+  outputLanguage: string; // This is the language the narrative was generated in
 }
 
 export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescription, outputLanguage }: NarrativeDisplayProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const followUpAudioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
+  const { language: currentGlobalLanguage } = useLanguage(); // For UI and new requests
+  const t = useTranslations();
+
 
   const [isRecording, setIsRecording] = useState(false);
   const [transcribedQuestion, setTranscribedQuestion] = useState("");
@@ -52,7 +55,7 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
         const recognitionInstance = new SpeechRecognitionAPI();
         recognitionInstance.continuous = false;
         recognitionInstance.interimResults = false;
-        recognitionInstance.lang = outputLanguage || 'en-US'; // Use selected language for speech recognition if possible
+        recognitionInstance.lang = currentGlobalLanguage || 'en-US'; 
 
         recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
           const transcript = event.results[event.results.length -1][0].transcript.trim();
@@ -63,18 +66,19 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
 
         recognitionInstance.onerror = (event: SpeechRecognitionErrorEvent) => {
           console.error('Speech recognition error:', event.error);
+          let errorMsgForToast = event.error;
           if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            setMicPermissionError("Microphone access was denied. Please enable it in your browser settings to use voice input.");
+            setMicPermissionError(t.micDeniedToastDescription);
              toast({
               variant: "destructive",
-              title: "Microphone Access Denied",
-              description: "Please enable microphone permissions in your browser settings.",
+              title: t.micDeniedToastTitle,
+              description: t.micDeniedToastDescription,
             });
           } else {
              toast({
               variant: "destructive",
-              title: "Speech Recognition Error",
-              description: `Could not process audio: ${event.error}`,
+              title: t.speechErrorToastTitle,
+              description: t.speechErrorToastDescription(errorMsgForToast),
             });
           }
           setIsRecording(false);
@@ -85,19 +89,19 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
         };
         setSpeechRecognition(recognitionInstance);
       } else {
-        setMicPermissionError("Speech recognition is not supported by your browser.");
+        setMicPermissionError(t.voiceInputNotReadyToastDescription("Speech recognition API not found in browser."));
       }
     } else {
-       setMicPermissionError("Speech recognition is not available or not supported by your browser.");
+       setMicPermissionError(t.voiceInputNotReadyToastDescription("Speech recognition not available in this environment."));
     }
-  }, [toast, outputLanguage]);
+  }, [toast, currentGlobalLanguage, t]);
 
   const handleToggleRecording = () => {
     if (!speechRecognition) {
       toast({
         variant: "destructive",
-        title: "Voice Input Not Ready",
-        description: micPermissionError || "Speech recognition is not available.",
+        title: t.voiceInputNotReadyToastTitle,
+        description: t.voiceInputNotReadyToastDescription(micPermissionError || "Speech recognition is not available."),
       });
       return;
     }
@@ -110,9 +114,8 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
       setTranscribedQuestion(""); 
       setFollowUpResult(null); 
       try {
-        // Update language for speech recognition instance if it changed
-        if (speechRecognition.lang !== (outputLanguage || 'en-US')) {
-            speechRecognition.lang = outputLanguage || 'en-US';
+        if (speechRecognition.lang !== (currentGlobalLanguage || 'en-US')) {
+            speechRecognition.lang = currentGlobalLanguage || 'en-US';
         }
         speechRecognition.start();
         setIsRecording(true);
@@ -120,8 +123,8 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
          console.error("Error starting speech recognition:", e);
          toast({
             variant: "destructive",
-            title: "Could Not Start Recording",
-            description: e.message || "Unknown error starting voice input.",
+            title: t.couldNotStartRecordingToastTitle,
+            description: t.couldNotStartRecordingToastDescription(e.message),
          });
          setIsRecording(false);
       }
@@ -133,8 +136,8 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
       if(!question.trim()) {
         toast({
           variant: "destructive",
-          title: "Empty Question",
-          description: "Please ask a question.",
+          title: t.emptyQuestionToastTitle,
+          description: t.emptyQuestionToastDescription,
         });
       }
       return;
@@ -143,26 +146,28 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
     setIsGeneratingFollowUp(true);
     setFollowUpResult(null);
 
-    const result = await generateFollowUpAnswerAction({
+    const actionInput: FollowUpServerInput = {
       currentNarrativeText: narrativeText,
       locationDescription: locationDescription,
       userQuestion: question,
-      outputLanguage: outputLanguage, // Pass outputLanguage
-    });
+      language: currentGlobalLanguage, // Pass global language for the AI response
+    };
+
+    const result = await generateFollowUpAnswerAction(actionInput);
 
     setIsGeneratingFollowUp(false);
 
     if ("error" in result) {
       toast({
         variant: "destructive",
-        title: "Follow-up Failed",
+        title: t.followUpFailedToastTitle,
         description: result.error,
       });
     } else {
       setFollowUpResult(result);
        toast({
-        title: "Follow-up Answer Ready!",
-        description: "Your question has been answered.",
+        title: t.followUpAnswerReadyToastTitle,
+        description: t.followUpAnswerReadyToastDescription,
       });
     }
   };
@@ -173,10 +178,10 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <BotMessageSquare className="h-6 w-6 text-primary" />
-          <span>Your Personalized Tour</span>
+          <span>{t.narrativeDisplayTitle}</span>
         </CardTitle>
         <CardDescription>
-          Listen to the generated narrative for your selected location and ask follow-up questions.
+          {t.narrativeDisplayDescription}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -184,7 +189,7 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
           <div className="pb-2">
             <h3 className="font-semibold mb-1 flex items-center gap-2 text-md">
               <MapPin className="h-5 w-5 text-accent" />
-              Identified Location:
+              {t.identifiedLocationLabel}
             </h3>
             <p className="text-sm text-foreground pl-7">{locationDescription}</p>
           </div>
@@ -193,11 +198,11 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
         <div>
           <h3 className="font-semibold mb-2 flex items-center gap-2 pt-2">
             <Volume2 className="h-5 w-5 text-secondary" />
-            Audio Narration
+            {t.audioNarrationLabel}
           </h3>
           {audioDataUri ? (
             <audio ref={audioRef} controls src={audioDataUri} className="w-full">
-              Your browser does not support the audio element.
+              {t.audioNotSupported}
             </audio>
           ) : (
             <p className="text-sm text-muted-foreground">Audio is being processed or is unavailable.</p>
@@ -205,9 +210,9 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
         </div>
         <Separator />
         <div>
-          <h3 className="font-semibold mb-2">Narrative Text</h3>
+          <h3 className="font-semibold mb-2">{t.narrativeTextLabel}</h3>
           <ScrollArea className="h-60 w-full rounded-md border p-4 bg-background">
-            <p className="text-sm whitespace-pre-wrap">{narrativeText || "No narrative text available."}</p>
+            <p className="text-sm whitespace-pre-wrap">{narrativeText || t.noNarrativeText}</p>
           </ScrollArea>
         </div>
         
@@ -217,18 +222,18 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
             <div className="space-y-4 pt-2">
               <h3 className="font-semibold flex items-center gap-2">
                 <CornerDownLeft className="h-5 w-5 text-primary" />
-                Ask a Follow-up Question
+                {t.followUpQuestionLabel}
               </h3>
               {micPermissionError && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Microphone Issue</AlertTitle>
-                  <AlertDescription>{micPermissionError}</AlertDescription>
+                  <AlertTitle>{t.micIssueAlertTitle}</AlertTitle>
+                  <AlertDescription>{t.micIssueAlertDescription(micPermissionError)}</AlertDescription>
                 </Alert>
               )}
               <div className="flex items-center gap-2">
                 <Textarea
-                  placeholder="Type your question or use the microphone..."
+                  placeholder={t.followUpPlaceholder}
                   value={transcribedQuestion}
                   onChange={(e) => setTranscribedQuestion(e.target.value)}
                   rows={2}
@@ -241,7 +246,7 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
                   onClick={handleToggleRecording}
                   disabled={!speechRecognition || isGeneratingFollowUp}
                   className={isRecording ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : ""}
-                  aria-label={isRecording ? "Stop recording" : "Start recording"}
+                  aria-label={isRecording ? t.stopRecordingButtonAria : t.startRecordingButtonAria}
                 >
                   <Mic className="h-5 w-5" />
                 </Button>
@@ -251,13 +256,13 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
                 disabled={isGeneratingFollowUp || isRecording || !transcribedQuestion.trim()}
                 className="w-full"
               >
-                {isGeneratingFollowUp ? "Getting Answer..." : "Submit Question"}
+                {isGeneratingFollowUp ? t.gettingAnswerButton : t.submitQuestionButton}
               </Button>
 
               {isGeneratingFollowUp && (
                  <div className="flex items-center justify-center py-4">
                     <BotMessageSquare className="h-6 w-6 animate-pulse text-primary mr-2" />
-                    <p className="text-sm text-muted-foreground">AI is thinking...</p>
+                    <p className="text-sm text-muted-foreground">{t.aiThinking}</p>
                  </div>
               )}
 
@@ -265,17 +270,17 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
                 <div className="mt-4 space-y-3 p-4 border rounded-md bg-muted/50">
                   <div>
                     <h4 className="font-medium flex items-center gap-2 text-sm">
-                      <User className="h-4 w-4 text-accent" /> Your Question:
+                      <User className="h-4 w-4 text-accent" /> {t.yourQuestionLabel}
                     </h4>
                     <p className="text-sm text-foreground pl-6">{transcribedQuestion}</p>
                   </div>
                   <div>
                     <h4 className="font-medium flex items-center gap-2 text-sm">
-                      <BotMessageSquare className="h-4 w-4 text-primary" /> AI's Answer:
+                      <BotMessageSquare className="h-4 w-4 text-primary" /> {t.aiAnswerLabel}
                     </h4>
                      {followUpResult.answerAudioDataUri && (
                         <audio ref={followUpAudioRef} controls src={followUpResult.answerAudioDataUri} className="w-full my-2">
-                          Your browser does not support the audio element.
+                          {t.audioNotSupported}
                         </audio>
                       )}
                     <ScrollArea className="h-32 w-full rounded-md border bg-background p-3">
@@ -290,10 +295,9 @@ export function NarrativeDisplay({ narrativeText, audioDataUri, locationDescript
       </CardContent>
       <CardFooter>
         <p className="text-xs text-muted-foreground">
-            Narrative, answers, and audio generated by AI. Enjoy your virtual tour!
+            {t.narrativeDisplayFooter}
         </p>
       </CardFooter>
     </Card>
   );
 }
-

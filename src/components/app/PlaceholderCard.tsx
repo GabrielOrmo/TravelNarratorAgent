@@ -1,20 +1,24 @@
+
+"use client";
+
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Compass } from 'lucide-react';
+import { useTranslations } from '@/lib/translations';
 
 export function PlaceholderCard() {
+  const t = useTranslations();
   return (
     <Card className="shadow-lg">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Compass className="h-6 w-6 text-primary" />
-          <span>Ready to Explore?</span>
+          <span>{t.placeholderCardTitle}</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-muted-foreground">
-          Enter a location description and choose your preferred narration style to get started. 
-          We'll craft a unique audio guide just for you!
+          {t.placeholderCardDescription}
         </p>
         <div className="aspect-[16/9] relative overflow-hidden rounded-lg">
           <Image

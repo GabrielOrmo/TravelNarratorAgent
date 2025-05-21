@@ -1,5 +1,4 @@
 
-// src/app/actions.ts
 "use server";
 
 import { generateNarrative } from "@/ai/flows/narrative-generation";
@@ -16,11 +15,12 @@ export interface TravelNarrativeResult {
   narrativeText: string;
   audioDataUri: string;
   locationDescription: string;
-  outputLanguage: string; // Added outputLanguage
+  outputLanguage: string; 
 }
 
 export async function generateTravelNarrativeAction(
-  rawValues: NarratorFormValues
+  rawValues: NarratorFormValues,
+  language: string // Added language parameter
 ): Promise<TravelNarrativeResult | { error: string }> {
   try {
     const validation = narratorFormSchema.safeParse(rawValues);
@@ -31,7 +31,7 @@ export async function generateTravelNarrativeAction(
       return { error: "Invalid input: " + errorMessages };
     }
 
-    const { imageDataUri, locationQuery, informationStyle, outputLanguage } = validation.data;
+    const { imageDataUri, locationQuery, informationStyle } = validation.data;
     let identifiedLocationDescription: string;
 
     if (imageDataUri) {
@@ -46,22 +46,20 @@ export async function generateTravelNarrativeAction(
     } else if (locationQuery) {
       identifiedLocationDescription = locationQuery;
     } else {
+      // This case should be caught by schema validation, but as a safeguard:
       return { error: "Please provide either a location search term or an image." };
     }
     
     const narrativeResult: GenerateNarrativeOutput = await generateNarrative({
       locationDescription: identifiedLocationDescription,
       informationStyle,
-      outputLanguage, // Pass outputLanguage
+      outputLanguage: language, // Use passed language
     });
 
     if (!narrativeResult.narrativeText) {
       return { error: "Failed to generate narrative text." };
     }
     
-    // For Text-to-Speech, a general "default" voice is often multilingual or adapts.
-    // Specific voice selection based on language is complex and often TTS provider specific.
-    // We'll keep it simple here.
     const audioResult: NarrationToAudioOutput = await narrationToAudio({
       narratedText: narrativeResult.narrativeText,
       voice: "default", 
@@ -75,7 +73,7 @@ export async function generateTravelNarrativeAction(
       narrativeText: narrativeResult.narrativeText,
       audioDataUri: audioResult.audioDataUri,
       locationDescription: identifiedLocationDescription,
-      outputLanguage, // Include outputLanguage in the result
+      outputLanguage: language, // Include passed language in the result
     };
   } catch (error) {
     console.error("Error in generateTravelNarrativeAction:", error);
@@ -87,11 +85,11 @@ export async function generateTravelNarrativeAction(
   }
 }
 
-export interface FollowUpInput {
+export interface FollowUpServerInput { // Renamed to avoid conflict if used on client
   currentNarrativeText: string;
   locationDescription: string;
   userQuestion: string;
-  outputLanguage: string; // Added outputLanguage
+  language: string; // Added language parameter
 }
 
 export interface FollowUpResult {
@@ -100,7 +98,7 @@ export interface FollowUpResult {
 }
 
 export async function generateFollowUpAnswerAction(
-  input: FollowUpInput
+  input: FollowUpServerInput // Use new type
 ): Promise<FollowUpResult | { error: string }> {
   try {
     if (!input.userQuestion.trim()) {
@@ -111,7 +109,7 @@ export async function generateFollowUpAnswerAction(
       currentNarrativeText: input.currentNarrativeText,
       locationDescription: input.locationDescription,
       userQuestion: input.userQuestion,
-      outputLanguage: input.outputLanguage, // Pass outputLanguage
+      outputLanguage: input.language, // Use passed language
     });
 
     if (!followUpAnswerResult.answerText) {
@@ -140,4 +138,3 @@ export async function generateFollowUpAnswerAction(
     return { error: errorMessage };
   }
 }
-
