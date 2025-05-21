@@ -1,7 +1,7 @@
 // src/app/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/app/Header";
 import { NarratorForm } from "@/components/app/NarratorForm";
 import { NarrativeDisplay } from "@/components/app/NarrativeDisplay";
@@ -13,7 +13,12 @@ import type { TravelNarrativeResult } from "./actions";
 export default function HomePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [narrativeResult, setNarrativeResult] = useState<TravelNarrativeResult | null>(null);
+  const [currentYear, setCurrentYear] = useState<number | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setCurrentYear(new Date().getFullYear());
+  }, []);
 
   const handleGenerationStart = () => {
     setIsGenerating(true);
@@ -68,7 +73,7 @@ export default function HomePage() {
         </main>
       </div>
       <footer className="text-center p-4 text-sm text-muted-foreground border-t">
-        © {new Date().getFullYear()} TravelNarrator. AI-powered by Genkit.
+        {currentYear !== null ? `© ${currentYear} TravelNarrator. AI-powered by Genkit.` : 'Loading year...'}
       </footer>
     </div>
   );
