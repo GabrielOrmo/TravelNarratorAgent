@@ -22,7 +22,7 @@ const WEBHOOK_URL = "https://n8n-mayia-test-u42339.vm.elestio.app/webhook-test/a
 
 export async function generateTravelNarrativeAction(
   rawValues: NarratorFormValues,
-  language: string, // This comes from the global context via NarratorForm
+  language: string, 
   userId: string,
   latitude?: number | null,
   longitude?: number | null
@@ -40,7 +40,6 @@ export async function generateTravelNarrativeAction(
       return { error: "User ID is missing. Cannot proceed." };
     }
 
-    // outputLanguage is no longer part of validation.data
     const { imageDataUri, locationQuery, informationStyle } = validation.data; 
     let identifiedLocationDescription: string;
 
@@ -59,7 +58,7 @@ export async function generateTravelNarrativeAction(
       return { error: "Please provide either a location search term or an image." };
     }
 
-    const effectiveOutputLanguage = language; // Use language from context
+    const effectiveOutputLanguage = language; 
 
 
     let narrativeTextFromWebhook: string;
@@ -151,7 +150,7 @@ export async function generateFollowUpAnswerAction(
         'X-Latitude': input.latitude?.toString() || '',
         'X-Longitude': input.longitude?.toString() || '',
         'Follow-Up': "true", 
-        'X-Current-Narrative': input.currentNarrativeText, 
+        // 'X-Current-Narrative': input.currentNarrativeText, // Removed as per user request
         'X-Location-Context': input.locationDescription, 
       };
       
