@@ -8,6 +8,8 @@ import { narrationToAudio } from "@/ai/flows/narration-to-audio";
 import type { NarrationToAudioOutput } from "@/ai/flows/narration-to-audio";
 import { generateImageDescription } from "@/ai/flows/image-to-description-flow";
 import type { GenerateImageDescriptionOutput } from "@/ai/flows/image-to-description-flow";
+import { generateFollowUpAnswer } from "@/ai/flows/follow-up-question-flow";
+import type { GenerateFollowUpOutput } from "@/ai/flows/follow-up-question-flow";
 import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
 
 export interface TravelNarrativeResult {
@@ -17,7 +19,7 @@ export interface TravelNarrativeResult {
 }
 
 export async function generateTravelNarrativeAction(
-  rawValues: NarratorFormValues // Changed from 'values' to 'rawValues' for clarity
+  rawValues: NarratorFormValues
 ): Promise<TravelNarrativeResult | { error: string }> {
   try {
     const validation = narratorFormSchema.safeParse(rawValues);
@@ -43,7 +45,6 @@ export async function generateTravelNarrativeAction(
     } else if (locationQuery) {
       identifiedLocationDescription = locationQuery;
     } else {
-      // This case should ideally be caught by client-side and schema validation
       return { error: "Please provide either a location search term or an image." };
     }
     
@@ -73,6 +74,58 @@ export async function generateTravelNarrativeAction(
   } catch (error) {
     console.error("Error in generateTravelNarrativeAction:", error);
     let errorMessage = "An unexpected error occurred. Please try again.";
+    if (error instanceof Error) {
+        errorMessage = error.message;
+    }
+    return { error: errorMessage };
+  }
+}
+
+export interface FollowUpInput {
+  currentNarrativeText: string;
+  locationDescription: string;
+  userQuestion: string;
+}
+
+export interface FollowUpResult {
+  answerText: string;
+  answerAudioDataUri: string;
+}
+
+export async function generateFollowUpAnswerAction(
+  input: FollowUpInput
+): Promise<FollowUpResult | { error: string }> {
+  try {
+    if (!input.userQuestion.trim()) {
+      return { error: "Follow-up question cannot be empty." };
+    }
+
+    const followUpAnswerResult: GenerateFollowUpOutput = await generateFollowUpAnswer({
+      currentNarrativeText: input.currentNarrativeText,
+      locationDescription: input.locationDescription,
+      userQuestion: input.userQuestion,
+    });
+
+    if (!followUpAnswerResult.answerText) {
+      return { error: "Failed to generate an answer for the follow-up question." };
+    }
+
+    const audioResult: NarrationToAudioOutput = await narrationToAudio({
+      narratedText: followUpAnswerResult.answerText,
+      voice: "default",
+    });
+
+    if (!audioResult.audioDataUri) {
+      return { error: "Failed to generate audio for the follow-up answer." };
+    }
+
+    return {
+      answerText: followUpAnswerResult.answerText,
+      answerAudioDataUri: audioResult.audioDataUri,
+    };
+  } catch (error) {
+    console.error("Error in generateFollowUpAnswerAction:", error);
+    let errorMessage = "An unexpected error occurred while processing your follow-up question.";
     if (error instanceof Error) {
         errorMessage = error.message;
     }
