@@ -10,12 +10,13 @@ export const narratorFormSchema = z.object({
   informationStyle: z.enum(["Historical", "Curious", "Legends"], {
     required_error: "You need to select an information style.",
   }),
-  // outputLanguage field is removed from here
+  // outputLanguage field has been removed
 }).refine(data => {
   return !!data.imageDataUri || !!data.locationQuery;
 }, {
   message: "Please provide either a location search term or an image.",
-  path: ["locationQuery"], 
+  path: ["locationQuery"], // Or path: ["imageDataUri"] or a general form error
 });
 
 export type NarratorFormValues = z.infer<typeof narratorFormSchema>;
+

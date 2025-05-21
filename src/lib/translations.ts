@@ -45,9 +45,7 @@ type TranslationKeys = {
   styleCuriousDescription: string;
   styleLegendsLabel: string;
   styleLegendsDescription: string;
-  outputLanguageLabel: string;
-  selectLanguagePlaceholder: string;
-  outputLanguageDescription: string;
+  // Output language form field translations removed
   languageEn: string;
   languageEs: string;
   languageFr: string;
@@ -143,9 +141,9 @@ const translationsData: Record<Locale, TranslationKeys> = {
     styleCuriousDescription: 'Uncover interesting tidbits and unusual details.',
     styleLegendsLabel: 'Legends',
     styleLegendsDescription: 'Explore myths, folklore, and captivating stories.',
-    outputLanguageLabel: 'Output Language',
-    selectLanguagePlaceholder: 'Select a language',
-    outputLanguageDescription: 'Choose the language for the narrative.',
+    // outputLanguageLabel: 'Output Language', // Removed
+    // selectLanguagePlaceholder: 'Select a language', // Removed
+    // outputLanguageDescription: 'Choose the language for the narrative.', // Removed
     languageEn: 'English',
     languageEs: 'Español (Spanish)',
     languageFr: 'Français (French)',
@@ -233,9 +231,9 @@ const translationsData: Record<Locale, TranslationKeys> = {
     styleCuriousDescription: 'Descubre datos interesantes y detalles inusuales.',
     styleLegendsLabel: 'Leyendas',
     styleLegendsDescription: 'Explora mitos, folclore e historias cautivadoras.',
-    outputLanguageLabel: 'Idioma de Salida',
-    selectLanguagePlaceholder: 'Selecciona un idioma',
-    outputLanguageDescription: 'Elige el idioma para la narración.',
+    // outputLanguageLabel: 'Idioma de Salida', // Removed
+    // selectLanguagePlaceholder: 'Selecciona un idioma', // Removed
+    // outputLanguageDescription: 'Elige el idioma para la narración.', // Removed
     languageEn: 'Inglés',
     languageEs: 'Español',
     languageFr: 'Francés',
@@ -323,9 +321,9 @@ const translationsData: Record<Locale, TranslationKeys> = {
     styleCuriousDescription: 'Découvrez des anecdotes intéressantes et des détails insolites.',
     styleLegendsLabel: 'Légendes',
     styleLegendsDescription: 'Explorez les mythes, le folklore et les histoires captivantes.',
-    outputLanguageLabel: 'Langue de Sortie',
-    selectLanguagePlaceholder: 'Sélectionnez une langue',
-    outputLanguageDescription: 'Choisissez la langue pour la narration.',
+    // outputLanguageLabel: 'Langue de Sortie', // Removed
+    // selectLanguagePlaceholder: 'Sélectionnez une langue', // Removed
+    // outputLanguageDescription: 'Choisissez la langue pour la narration.', // Removed
     languageEn: 'Anglais',
     languageEs: 'Espagnol',
     languageFr: 'Français',
@@ -379,3 +377,4 @@ export function useTranslations() {
   const { language } = useLanguage();
   return translationsData[language];
 }
+

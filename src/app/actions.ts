@@ -5,8 +5,6 @@ import { generateImageDescription } from "@/ai/flows/image-to-description-flow";
 import type { GenerateImageDescriptionOutput } from "@/ai/flows/image-to-description-flow";
 import { narrationToAudio } from "@/ai/flows/narration-to-audio"; 
 import type { NarrationToAudioOutput } from "@/ai/flows/narration-to-audio";
-// Removed: import { generateFollowUpAnswer } from "@/ai/flows/follow-up-question-flow";
-// Removed: import type { GenerateFollowUpOutput } from "@/ai/flows/follow-up-question-flow";
 import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
 
 export interface TravelNarrativeResult {
@@ -14,17 +12,17 @@ export interface TravelNarrativeResult {
   audioDataUri: string; 
   locationDescription: string;
   outputLanguage: string;
-  informationStyle: string; // Added
-  userId: string; // Added
-  latitude?: number | null; // Added
-  longitude?: number | null; // Added
+  informationStyle: string; 
+  userId: string; 
+  latitude?: number | null; 
+  longitude?: number | null; 
 }
 
 const WEBHOOK_URL = "https://n8n-mayia-test-u42339.vm.elestio.app/webhook-test/a21f3fcb-4808-495c-974a-7646892675a2";
 
 export async function generateTravelNarrativeAction(
   rawValues: NarratorFormValues,
-  language: string, 
+  language: string, // This comes from the global context via NarratorForm
   userId: string,
   latitude?: number | null,
   longitude?: number | null
@@ -42,7 +40,8 @@ export async function generateTravelNarrativeAction(
       return { error: "User ID is missing. Cannot proceed." };
     }
 
-    const { imageDataUri, locationQuery, informationStyle } = validation.data; // outputLanguage removed from form
+    // outputLanguage is no longer part of validation.data
+    const { imageDataUri, locationQuery, informationStyle } = validation.data; 
     let identifiedLocationDescription: string;
 
     if (imageDataUri) {
@@ -60,7 +59,7 @@ export async function generateTravelNarrativeAction(
       return { error: "Please provide either a location search term or an image." };
     }
 
-    const effectiveOutputLanguage = language;
+    const effectiveOutputLanguage = language; // Use language from context
 
 
     let narrativeTextFromWebhook: string;
@@ -72,7 +71,7 @@ export async function generateTravelNarrativeAction(
         'X-Output-Language': effectiveOutputLanguage,
         'X-Latitude': latitude?.toString() || '',
         'X-Longitude': longitude?.toString() || '',
-        'Follow-Up': "false", // Added Follow-Up header
+        'Follow-Up': "false", 
       };
       
       const webhookResponse = await fetch(WEBHOOK_URL, {
@@ -99,10 +98,10 @@ export async function generateTravelNarrativeAction(
       audioDataUri: "", 
       locationDescription: identifiedLocationDescription,
       outputLanguage: effectiveOutputLanguage,
-      informationStyle, // Return for follow-up
-      userId, // Return for follow-up
-      latitude, // Return for follow-up
-      longitude, // Return for follow-up
+      informationStyle, 
+      userId, 
+      latitude, 
+      longitude, 
     };
 
   } catch (error) {
@@ -120,10 +119,10 @@ export interface FollowUpServerInput {
   locationDescription: string;
   userQuestion: string;
   language: string;
-  informationStyle: string; // Added
-  userId: string; // Added
-  latitude?: number | null; // Added
-  longitude?: number | null; // Added
+  informationStyle: string; 
+  userId: string; 
+  latitude?: number | null; 
+  longitude?: number | null; 
 }
 
 export interface FollowUpResult {
@@ -146,14 +145,14 @@ export async function generateFollowUpAnswerAction(
     try {
       const headers: Record<string, string> = {
         'Style': input.informationStyle,
-        'Prompt': input.userQuestion, // Follow-up question is the prompt
+        'Prompt': input.userQuestion, 
         'X-User-ID': input.userId, 
         'X-Output-Language': input.language,
         'X-Latitude': input.latitude?.toString() || '',
         'X-Longitude': input.longitude?.toString() || '',
-        'Follow-Up': "true", // Added Follow-Up header
-        'X-Current-Narrative': input.currentNarrativeText, // Context for the agent
-        'X-Location-Context': input.locationDescription, // Context for the agent
+        'Follow-Up': "true", 
+        'X-Current-Narrative': input.currentNarrativeText, 
+        'X-Location-Context': input.locationDescription, 
       };
       
       const webhookResponse = await fetch(WEBHOOK_URL, {
@@ -198,3 +197,4 @@ export async function generateFollowUpAnswerAction(
     return { error: errorMessage };
   }
 }
+

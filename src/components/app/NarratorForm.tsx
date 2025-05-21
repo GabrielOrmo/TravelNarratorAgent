@@ -84,13 +84,11 @@ export function NarratorForm({
       imageDataUri: undefined,
       locationQuery: undefined,
       informationStyle: "Curious",
-      outputLanguage: currentLanguage || "en",
+      // outputLanguage removed from defaultValues
     },
   });
 
-  useEffect(() => {
-    form.setValue("outputLanguage", currentLanguage);
-  }, [currentLanguage, form]);
+  // useEffect for setting outputLanguage based on currentLanguage is removed.
 
   useEffect(() => {
     setIsMounted(true);
@@ -228,7 +226,7 @@ export function NarratorForm({
     onGenerationStart();
     try {
       const { generateTravelNarrativeAction } = await import("@/app/actions");
-      // Pass currentLanguage (from context) instead of data.outputLanguage (from form)
+      // currentLanguage (from context) is passed instead of data.outputLanguage
       const result = await generateTravelNarrativeAction(data, currentLanguage, userId, latitude, longitude);
       if ("error" in result) {
         onGenerationError(result.error);
@@ -284,9 +282,7 @@ export function NarratorForm({
             <Skeleton className="h-16 w-full rounded-md border p-3 mt-2" />
             <Skeleton className="h-16 w-full rounded-md border p-3 mt-2" />
           </div>
-           <div className="space-y-2">
-             <Skeleton className="h-10 w-full" />
-          </div>
+           {/* Skeleton for output language selector removed */}
         </CardContent>
         <CardFooter>
           <Skeleton className="h-10 w-full" />
@@ -422,7 +418,7 @@ export function NarratorForm({
                     <div className="mt-4 space-y-2">
                       <h4 className="text-sm font-medium">{t.imagePreviewTitle}</h4>
                       <div className="relative w-full aspect-video border rounded-md overflow-hidden">
-                        <NextImage src={imagePreview} alt="Selected location preview" layout="fill" objectFit="contain" data-ai-hint="landmark photo" />
+                        <NextImage src={imagePreview} alt="Selected location preview" layout="fill" objectFit="contain" data-ai-hint="landmark photo"/>
                       </div>
                       <Button variant="outline" size="sm" onClick={clearImage}>
                         {t.clearImageButton}
@@ -469,38 +465,8 @@ export function NarratorForm({
               )}
             />
             
-            <FormField
-                control={form.control}
-                name="outputLanguage"
-                render={({ field }) => (
-                    <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                           {/* Using an existing icon, e.g. Languages from lucide-react */}
-                           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-languages"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
-                            {t.outputLanguageLabel}
-                        </FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder={t.selectLanguagePlaceholder} />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                <SelectItem value="en">{t.languageEn}</SelectItem>
-                                <SelectItem value="es">{t.languageEs}</SelectItem>
-                                <SelectItem value="fr">{t.languageFr}</SelectItem>
-                                <SelectItem value="de">{t.languageDe}</SelectItem>
-                                <SelectItem value="ja">{t.languageJa}</SelectItem>
-                                {/* Add more languages here */}
-                            </SelectContent>
-                        </Select>
-                        <FormDescription>
-                            {t.outputLanguageDescription}
-                        </FormDescription>
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
+            {/* Output Language Selector FormField removed */}
+
           </CardContent>
           <CardFooter>
             <Button type="submit" disabled={isGenerating || !form.formState.isValid || !userId} className="w-full">
