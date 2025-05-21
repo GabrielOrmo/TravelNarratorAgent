@@ -46,11 +46,6 @@ type TranslationKeys = {
   styleCuriousDescription: string;
   styleLegendsLabel: string;
   styleLegendsDescription: string;
-  languageEn: string;
-  languageEs: string;
-  languageFr: string;
-  languageDe: string;
-  languageJa: string;
   generateNarrativeButton: string;
   generatingButton: string;
   loadingYear: string;
@@ -78,7 +73,7 @@ type TranslationKeys = {
   followUpFailedToastTitle: string;
   followUpAnswerReadyToastTitle: string;
   followUpAnswerReadyToastDescription: string;
-  narrativeDisplayFooterWebhook: string; 
+  narrativeDisplayFooterWebhook: string;
   emptyQuestionToastTitle: string;
   emptyQuestionToastDescription: string;
   voiceInputNotReadyToastTitle: string;
@@ -104,8 +99,8 @@ const translationsData: Record<Locale, TranslationKeys> = {
     toastNarrativeGeneratedTitle: 'Narrative Ready!',
     toastNarrativeGeneratedDescription: (location) => `Your agent response for ${location || 'the location'} is ready.`,
     toastGenerationFailedTitle: 'Generation Failed',
-    formTitle: 'Describe Your Destination',
-    formDescription: 'Enter a location, use an image, or share your current location. Then, choose your narration style.',
+    formTitle: 'Where are we exploring?',
+    formDescription: 'Tell us where you want to go by typing, using an image, or sharing your current location.',
     locationNameLabel: 'Location Name or Description',
     locationNamePlaceholder: 'e.g., Eiffel Tower, Paris',
     locationNameDescription: 'Type the name or a brief description of the location.',
@@ -131,18 +126,13 @@ const translationsData: Record<Locale, TranslationKeys> = {
     captureImageButton: 'Capture Image',
     imagePreviewTitle: 'Image Preview:',
     clearImageButton: 'Clear Image',
-    informationStyleLabel: 'Information Style',
+    informationStyleLabel: 'How do you want to hear the story?',
     styleHistoricalLabel: 'Historical',
     styleHistoricalDescription: 'Focus on facts, dates, and historical significance.',
     styleCuriousLabel: 'Curious',
     styleCuriousDescription: 'Uncover interesting tidbits and unusual details.',
     styleLegendsLabel: 'Legends',
     styleLegendsDescription: 'Explore myths, folklore, and captivating stories.',
-    languageEn: 'English',
-    languageEs: 'Español (Spanish)',
-    languageFr: 'Français (French)',
-    languageDe: 'Deutsch (German)',
-    languageJa: '日本語 (Japanese)',
     generateNarrativeButton: 'Get Agent Response',
     generatingButton: 'Contacting Agent...',
     loadingYear: 'Loading year...',
@@ -191,8 +181,8 @@ const translationsData: Record<Locale, TranslationKeys> = {
     toastNarrativeGeneratedTitle: '¡Respuesta del Agente Lista!',
     toastNarrativeGeneratedDescription: (location) => `La respuesta de tu agente para ${location || 'la ubicación'} está lista.`,
     toastGenerationFailedTitle: 'Falló la Generación',
-    formTitle: 'Describe Tu Destino',
-    formDescription: 'Ingresa una ubicación, usa una imagen o comparte tu ubicación actual. Luego, elige tu estilo de narración.',
+    formTitle: '¿Dónde estamos explorando?',
+    formDescription: 'Dinos a dónde quieres ir escribiendo, usando una imagen o compartiendo tu ubicación actual.',
     locationNameLabel: 'Nombre o Descripción de la Ubicación',
     locationNamePlaceholder: 'Ej: Torre Eiffel, París',
     locationNameDescription: 'Escribe el nombre o una breve descripción de la ubicación.',
@@ -218,18 +208,13 @@ const translationsData: Record<Locale, TranslationKeys> = {
     captureImageButton: 'Capturar Imagen',
     imagePreviewTitle: 'Vista Previa de Imagen:',
     clearImageButton: 'Limpiar Imagen',
-    informationStyleLabel: 'Estilo de Información',
+    informationStyleLabel: '¿Cómo quieres escuchar la historia?',
     styleHistoricalLabel: 'Histórico',
     styleHistoricalDescription: 'Enfócate en hechos, fechas y significado histórico.',
     styleCuriousLabel: 'Curioso',
     styleCuriousDescription: 'Descubre datos interesantes y detalles inusuales.',
     styleLegendsLabel: 'Leyendas',
     styleLegendsDescription: 'Explora mitos, folclore e historias cautivadoras.',
-    languageEn: 'Inglés',
-    languageEs: 'Español',
-    languageFr: 'Francés',
-    languageDe: 'Alemán',
-    languageJa: 'Japonés',
     generateNarrativeButton: 'Obtener Respuesta del Agente',
     generatingButton: 'Contactando Agente...',
     loadingYear: 'Cargando año...',
@@ -278,8 +263,8 @@ const translationsData: Record<Locale, TranslationKeys> = {
     toastNarrativeGeneratedTitle: "Réponse de l'Agent Prête !",
     toastNarrativeGeneratedDescription: (location) => `La réponse de votre agent pour ${location || "l'endroit"} est prête.`,
     toastGenerationFailedTitle: 'Échec de la Génération',
-    formTitle: 'Décrivez Votre Destination',
-    formDescription: "Entrez un lieu, utilisez une image ou partagez votre position actuelle. Ensuite, choisissez votre style de narration.",
+    formTitle: 'Où explorons-nous ?',
+    formDescription: "Dites-nous où vous voulez aller en tapant, en utilisant une image ou en partageant votre position actuelle.",
     locationNameLabel: 'Nom ou Description du Lieu',
     locationNamePlaceholder: 'Ex: Tour Eiffel, Paris',
     locationNameDescription: 'Tapez le nom ou une brève description du lieu.',
@@ -305,18 +290,13 @@ const translationsData: Record<Locale, TranslationKeys> = {
     captureImageButton: "Capturer l'Image",
     imagePreviewTitle: 'Aperçu Image:',
     clearImageButton: 'Effacer Image',
-    informationStyleLabel: "Style d'Information",
+    informationStyleLabel: "Comment voulez-vous entendre l'histoire ?",
     styleHistoricalLabel: 'Historique',
     styleHistoricalDescription: 'Concentrez-vous sur les faits, les dates et la signification historique.',
     styleCuriousLabel: 'Curieux',
     styleCuriousDescription: 'Découvrez des anecdotes intéressantes et des détails insolites.',
     styleLegendsLabel: 'Légendes',
     styleLegendsDescription: 'Explorez les mythes, le folklore et les histoires captivantes.',
-    languageEn: 'Anglais',
-    languageEs: 'Espagnol',
-    languageFr: 'Français',
-    languageDe: 'Allemand',
-    languageJa: 'Japonais',
     generateNarrativeButton: "Obtenir Réponse de l'Agent",
     generatingButton: "Contact de l'Agent...",
     loadingYear: "Chargement de l'année...",
