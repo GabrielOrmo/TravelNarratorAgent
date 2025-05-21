@@ -4,7 +4,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Wand2, Info, Newspaper, Castle, HelpCircle, Upload, Camera, Image as ImageIcon, AlertTriangle } from "lucide-react";
+import { Wand2, Info, Newspaper, Castle, HelpCircle, Upload, Camera, Image as ImageIcon, AlertTriangle, Search, MapPin } from "lucide-react";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 
@@ -23,6 +23,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import type { TravelNarrativeResult } from "@/app/actions";
 import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
@@ -57,7 +58,8 @@ export function NarratorForm({
   const form = useForm<NarratorFormValues>({
     resolver: zodResolver(narratorFormSchema),
     defaultValues: {
-      imageDataUri: "",
+      imageDataUri: undefined,
+      locationQuery: undefined,
       informationStyle: "Curious",
     },
   });
@@ -70,6 +72,7 @@ export function NarratorForm({
         const dataUri = reader.result as string;
         setImagePreview(dataUri);
         form.setValue("imageDataUri", dataUri, { shouldValidate: true });
+        form.setValue("locationQuery", undefined, { shouldValidate: true }); // Clear text query if image is uploaded
       };
       reader.readAsDataURL(file);
     }
@@ -106,7 +109,7 @@ export function NarratorForm({
     if (activeTab === "camera" && hasCameraPermission === null) {
       startCamera();
     }
-    return () => { // Cleanup: stop camera stream when component unmounts or tab changes
+    return () => {
       if (videoRef.current?.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach(track => track.stop());
@@ -123,11 +126,11 @@ export function NarratorForm({
       const context = canvas.getContext('2d');
       if (context) {
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUri = canvas.toDataURL('image/jpeg'); // Or image/png
+        const dataUri = canvas.toDataURL('image/jpeg');
         setImagePreview(dataUri);
         form.setValue("imageDataUri", dataUri, { shouldValidate: true });
+        form.setValue("locationQuery", undefined, { shouldValidate: true }); // Clear text query if image is captured
 
-        // Stop camera stream after capture
         if (videoRef.current?.srcObject) {
             const stream = videoRef.current.srcObject as MediaStream;
             stream.getTracks().forEach(track => track.stop());
@@ -137,10 +140,8 @@ export function NarratorForm({
   };
 
   async function onSubmit(data: NarratorFormValues) {
-    if (!data.imageDataUri) {
-      form.setError("imageDataUri", { type: "manual", message: "Please upload or capture an image of the location."})
-      return;
-    }
+    // Validation ensures at least one is present.
+    // If user somehow bypassed client validation, server action will also check.
     onGenerationStart();
     try {
       const { generateTravelNarrativeAction } = await import("@/app/actions");
@@ -155,15 +156,24 @@ export function NarratorForm({
     }
   }
 
+  const clearImage = () => {
+    setImagePreview(null);
+    form.setValue("imageDataUri", undefined, { shouldValidate: true });
+    if(fileInputRef.current) fileInputRef.current.value = "";
+     if (activeTab === "camera" && hasCameraPermission) {
+          startCamera();
+     }
+  }
+
   return (
     <Card className="shadow-lg w-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <ImageIcon className="h-6 w-6 text-primary" />
-          <span>Show Us Your Destination</span>
+          <MapPin className="h-6 w-6 text-primary" />
+          <span>Describe Your Destination</span>
         </CardTitle>
         <CardDescription>
-          Upload an image or use your camera to capture the landmark. Then, choose your narration style.
+          Enter a location name, or upload/capture an image. Then, choose your narration style.
         </CardDescription>
       </CardHeader>
       <Form {...form}>
@@ -171,10 +181,49 @@ export function NarratorForm({
           <CardContent className="space-y-6">
             <FormField
               control={form.control}
-              name="imageDataUri"
-              render={({ field }) => ( // field is not directly used for input element but for error display
+              name="locationQuery"
+              render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Location Image</FormLabel>
+                  <FormLabel className="flex items-center gap-2">
+                    <Search className="h-5 w-5" />
+                    Location Name or Description
+                  </FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="e.g., Eiffel Tower, Paris" 
+                      {...field} 
+                      value={field.value ?? ""}
+                      onChange={(e) => {
+                        field.onChange(e.target.value);
+                        if (e.target.value && imagePreview) {
+                          clearImage(); // Clear image if text is typed
+                        }
+                      }}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Type the name or a brief description of the location.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex items-center space-x-2">
+              <Separator className="flex-grow" />
+              <span className="text-sm text-muted-foreground">OR</span>
+              <Separator className="flex-grow" />
+            </div>
+            
+            <FormField
+              control={form.control}
+              name="imageDataUri"
+              render={() => ( 
+                <FormItem>
+                  <FormLabel  className="flex items-center gap-2">
+                    <ImageIcon className="h-5 w-5" /> 
+                    Location Image
+                  </FormLabel>
                   <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "upload" | "camera")} className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                       <TabsTrigger value="upload"><Upload className="mr-2 h-4 w-4" />Upload Image</TabsTrigger>
@@ -200,7 +249,7 @@ export function NarratorForm({
                                 <AlertTriangle className="h-4 w-4" />
                                 <AlertTitle>Camera Access Problem</AlertTitle>
                                 <AlertDescription>
-                                Could not access the camera. Please ensure permissions are granted and your browser supports it. You can still upload an image.
+                                Could not access the camera. Please ensure permissions are granted. You can still upload or type the location.
                                 </AlertDescription>
                             </Alert>
                         )}
@@ -213,7 +262,6 @@ export function NarratorForm({
                                 muted
                                 data-testid="camera-feed"
                             />
-                            {/* Canvas for capturing frame, hidden */}
                             <canvas ref={canvasRef} style={{ display: 'none' }} />
                         </div>
                         <Button type="button" onClick={handleCaptureImage} disabled={isGenerating || hasCameraPermission === false || !videoRef.current?.srcObject} className="w-full">
@@ -227,19 +275,12 @@ export function NarratorForm({
                       <div className="relative w-full aspect-video border rounded-md overflow-hidden">
                         <Image src={imagePreview} alt="Selected location preview" layout="fill" objectFit="contain" data-ai-hint="landmark photo" />
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => {
-                          setImagePreview(null);
-                          form.setValue("imageDataUri", "", { shouldValidate: true });
-                          if(fileInputRef.current) fileInputRef.current.value = ""; // Clear file input
-                           if (activeTab === "camera" && hasCameraPermission) { // Restart camera if it was stopped
-                                startCamera();
-                           }
-                      }}>
+                      <Button variant="outline" size="sm" onClick={clearImage}>
                         Clear Image
                       </Button>
                     </div>
                   )}
-                  <FormMessage /> {/* For imageDataUri field errors */}
+                  {/* FormMessage for imageDataUri is handled by the global form message via refine path for now */}
                 </FormItem>
               )}
             />
@@ -280,7 +321,7 @@ export function NarratorForm({
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={isGenerating || !form.formState.isValid || !imagePreview} className="w-full">
+            <Button type="submit" disabled={isGenerating || !form.formState.isValid} className="w-full">
               <Wand2 className="mr-2 h-4 w-4" />
               {isGenerating ? "Generating..." : "Generate Narrative"}
             </Button>
