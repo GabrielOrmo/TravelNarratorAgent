@@ -10,13 +10,13 @@ export const narratorFormSchema = z.object({
   informationStyle: z.enum(["Historical", "Curious", "Legends"], {
     required_error: "You need to select an information style.",
   }),
-  // outputLanguage field has been removed
 }).refine(data => {
-  return !!data.imageDataUri || !!data.locationQuery;
+  const isLocationQueryProvided = data.locationQuery && data.locationQuery.trim().length > 0;
+  const isImageDataUriProvided = !!data.imageDataUri;
+  return isImageDataUriProvided || isLocationQueryProvided;
 }, {
   message: "Please provide either a location search term or an image.",
-  path: ["locationQuery"], // Or path: ["imageDataUri"] or a general form error
+  path: [], // Makes this a root-level error
 });
 
 export type NarratorFormValues = z.infer<typeof narratorFormSchema>;
-
