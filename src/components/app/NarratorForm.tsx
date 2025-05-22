@@ -18,6 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -28,13 +29,7 @@ import { getPlaceAutocompleteSuggestions, generateTravelNarrativeAction } from "
 import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
 import { useLanguage, type Locale } from "@/contexts/LanguageContext";
 import { useTranslations } from "@/lib/translations";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 
 const USER_ID_STORAGE_KEY = 'aijolot-user-id';
@@ -107,7 +102,7 @@ export function NarratorForm({
       stream.getTracks().forEach(track => track.stop());
       videoRef.current.srcObject = null; 
     }
-    setHasCameraPermission(null); // Reset permission status to allow re-request if needed
+    setHasCameraPermission(null); 
   }, []);
 
   const clearImage = useCallback(() => {
@@ -146,7 +141,7 @@ export function NarratorForm({
       } catch (error) {
         console.error('Error accessing camera:', error);
         setHasCameraPermission(false);
-        setShowCameraView(false); // Hide camera view on error
+        setShowCameraView(false); 
         toast({
           variant: 'destructive',
           title: t.cameraAccessProblemTitle,
@@ -155,7 +150,7 @@ export function NarratorForm({
       }
     } else {
       setHasCameraPermission(false);
-      setShowCameraView(false); // Hide camera view if not supported
+      setShowCameraView(false); 
       toast({
         variant: 'destructive',
         title: t.cameraAccessProblemTitle,
@@ -169,7 +164,6 @@ export function NarratorForm({
       startCamera();
     }
     return () => {
-       // Cleanup when component unmounts or showCameraView becomes false
       if (!showCameraView) {
           stopCameraTracks();
       }
@@ -216,8 +210,6 @@ export function NarratorForm({
         setLatitude(position.coords.latitude);
         setLongitude(position.coords.longitude);
         setIsFetchingLocation(false);
-        // Optionally, set a generic location query like "My Current Location"
-        // form.setValue("locationQuery", "My Current Location", { shouldValidate: true }); 
         toast({ title: t.geolocationSuccessTitle, description: t.geolocationSuccessDescription });
       },
       (error) => {
@@ -325,7 +317,6 @@ export function NarratorForm({
     clearImage();
     form.setValue("locationQuery", undefined, {shouldValidate: true});
     setShowCameraView(true);
-    // startCamera is called by useEffect based on showCameraView
   }
 
   const handleCancelCamera = () => {
@@ -352,7 +343,7 @@ export function NarratorForm({
           </div>
           <div className="space-y-3 mt-4">
             <Skeleton className="h-5 w-1/3 mb-2" />
-            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-md border p-3 mt-2" />)}
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-md border p-3 mt-2" />)}
           </div>
         </CardContent>
         <CardFooter>
@@ -473,10 +464,10 @@ export function NarratorForm({
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <Button type="button" onClick={handleCaptureImage} disabled={isGenerating || hasCameraPermission === false || !videoRef.current?.srcObject}>
-                      <Camera className="h-4 w-4" /> {t.captureImageButton}
+                      <Camera className="h-4 w-4 mr-2" /> {t.captureImageButton}
                     </Button>
                      <Button type="button" variant="outline" onClick={handleCancelCamera} disabled={isGenerating}>
-                      <XCircle className="h-4 w-4" /> {t.cancelCameraButton}
+                      <XCircle className="h-4 w-4 mr-2" /> {t.cancelCameraButton}
                     </Button>
                   </div>
                 </div>
@@ -489,7 +480,7 @@ export function NarratorForm({
                     <NextImage src={imagePreview} alt={t.imagePreviewAlt} layout="fill" objectFit="contain" data-ai-hint="landmark photo"/>
                   </div>
                   <Button variant="outline" size="sm" onClick={clearImage} disabled={isGenerating}>
-                    <XCircle className="h-4 w-4" /> {t.clearImageButton}
+                    <XCircle className="h-4 w-4 mr-2" /> {t.clearImageButton}
                   </Button>
                 </div>
               )}
@@ -510,15 +501,30 @@ export function NarratorForm({
                       className="flex flex-col space-y-2"
                     >
                       {informationStyles.map((style) => (
-                        <FormItem key={style.id} className="flex items-center space-x-3 space-y-0 p-3 border rounded-md hover:bg-accent/50 transition-colors">
-                          <FormControl><RadioGroupItem value={style.id} /></FormControl>
-                          <div className="flex-1">
-                            <FormLabel className="font-normal flex items-center gap-2">
-                              <style.icon className="h-5 w-5 text-muted-foreground"/> {style.label}
-                            </FormLabel>
-                            <FormDescription className="text-xs">{style.description}</FormDescription>
-                          </div>
-                        </FormItem>
+                         <div key={style.id}>
+                          <RadioGroupItem
+                            value={style.id}
+                            id={`style-${style.id.toLowerCase()}`}
+                            className="peer sr-only"
+                          />
+                          <Label
+                            htmlFor={`style-${style.id.toLowerCase()}`}
+                            className={cn(
+                              "flex flex-col p-4 border rounded-lg cursor-pointer transition-colors",
+                              "hover:bg-accent/10 dark:hover:bg-accent/20",
+                              "peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-accent peer-data-[state=checked]:text-accent-foreground",
+                              field.value === style.id ? "border-primary bg-accent text-accent-foreground" : "bg-card text-card-foreground border-border"
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              <style.icon className={cn("h-5 w-5 shrink-0", field.value === style.id ? "text-accent-foreground" : "text-muted-foreground")} />
+                              <span className="font-semibold text-sm">{style.label}</span>
+                            </div>
+                            <FormDescription className={cn("text-xs mt-1 pl-7", field.value === style.id ? "text-accent-foreground/90" : "text-muted-foreground")}>
+                              {style.description}
+                            </FormDescription>
+                          </Label>
+                        </div>
                       ))}
                     </RadioGroup>
                   </FormControl>
@@ -538,4 +544,3 @@ export function NarratorForm({
     </Card>
   );
 }
-
