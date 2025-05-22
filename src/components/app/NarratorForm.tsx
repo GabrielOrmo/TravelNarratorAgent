@@ -345,10 +345,10 @@ export function NarratorForm({
             <Skeleton className="h-5 w-1/3" />
             <Skeleton className="h-10 w-full" />
           </div>
-          <div className="flex space-x-2 mt-2">
-            <Skeleton className="h-10 w-1/3" />
-            <Skeleton className="h-10 w-1/3" />
-            <Skeleton className="h-10 w-1/3" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
           </div>
           <div className="space-y-3 mt-4">
             <Skeleton className="h-5 w-1/3 mb-2" />
@@ -429,16 +429,16 @@ export function NarratorForm({
             <div className="space-y-4">
               {!showCameraView && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <Button type="button" variant="outline" onClick={handleRequestLocation} disabled={isFetchingLocation || isGenerating}>
-                    <LocateFixed className={`mr-2 h-4 w-4 ${isFetchingLocation ? 'animate-pulse' : ''}`} />
+                  <Button type="button" variant="outline" onClick={handleRequestLocation} disabled={isFetchingLocation || isGenerating} className="gap-1">
+                    <LocateFixed className={`h-4 w-4 ${isFetchingLocation ? 'animate-pulse' : ''}`} />
                     {t.useCurrentLocationButton}
                   </Button>
-                  <Button type="button" variant="outline" onClick={handleCameraButtonClick} disabled={isGenerating}>
-                    <Camera className="mr-2 h-4 w-4" />
+                  <Button type="button" variant="outline" onClick={handleCameraButtonClick} disabled={isGenerating} className="gap-1">
+                    <Camera className="h-4 w-4" />
                     {t.scanWithCameraButton}
                   </Button>
-                  <Button type="button" variant="outline" onClick={handleUploadButtonClick} disabled={isGenerating}>
-                    <Upload className="mr-2 h-4 w-4" />
+                  <Button type="button" variant="outline" onClick={handleUploadButtonClick} disabled={isGenerating} className="gap-1">
+                    <Upload className="h-4 w-4" />
                     {t.uploadImageButton}
                   </Button>
                 </div>
@@ -473,10 +473,10 @@ export function NarratorForm({
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <Button type="button" onClick={handleCaptureImage} disabled={isGenerating || hasCameraPermission === false || !videoRef.current?.srcObject}>
-                      <Camera className="mr-2 h-4 w-4" /> {t.captureImageButton}
+                      <Camera className="h-4 w-4" /> {t.captureImageButton}
                     </Button>
                      <Button type="button" variant="outline" onClick={handleCancelCamera} disabled={isGenerating}>
-                      <XCircle className="mr-2 h-4 w-4" /> {t.cancelCameraButton}
+                      <XCircle className="h-4 w-4" /> {t.cancelCameraButton}
                     </Button>
                   </div>
                 </div>
@@ -489,7 +489,7 @@ export function NarratorForm({
                     <NextImage src={imagePreview} alt={t.imagePreviewAlt} layout="fill" objectFit="contain" data-ai-hint="landmark photo"/>
                   </div>
                   <Button variant="outline" size="sm" onClick={clearImage} disabled={isGenerating}>
-                    <XCircle className="mr-2 h-4 w-4" /> {t.clearImageButton}
+                    <XCircle className="h-4 w-4" /> {t.clearImageButton}
                   </Button>
                 </div>
               )}
