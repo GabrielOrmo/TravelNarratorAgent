@@ -13,13 +13,12 @@ type TranslationKeys = {
   toastGenerationFailedTitle: string;
   // NarratorForm
   formTitle: string;
-  formDescription: string; // Updated
-  imageInputSectionTitle: string; // New
-  describeLocationSectionTitle: string; // New
-  currentLocationSectionTitle: string; // New
-  orSeparatorText: string; // New
+  formDescription: string;
+  imageInputSectionTitle: string;
+  describeLocationSectionTitle: string;
+  currentLocationSectionTitle: string;
+  orSeparatorText: string;
 
-  locationNameLabel: string;
   locationNamePlaceholder: string;
   locationNameDescription: string;
   autocompleteLoading: string;
@@ -29,7 +28,7 @@ type TranslationKeys = {
   scanWithCameraButton: string;
   uploadImageButton: string;
   cancelCameraButton: string;
-  fetchingLocationButton: string;
+  fetchingLocationButton: string; // Kept for potential future use, though button text might change
   geolocationNotSupported: string;
   geolocationPermissionDenied: string;
   geolocationPositionUnavailable: string;
@@ -56,6 +55,11 @@ type TranslationKeys = {
   generateNarrativeButton: string;
   generatingButton: string;
   loadingYear: string;
+  // Nearby Places
+  nearbyPlacesTitle: string;
+  nearbyPlacesErrorTitle: string;
+  nearbyPlacesNoResultsTitle: string;
+  nearbyPlacesNoResultsDescription: string;
   // NarrativeDisplay
   narrativeDisplayTitle: string;
   narrativeDisplayDescription: string;
@@ -75,7 +79,7 @@ type TranslationKeys = {
   stopRecordingButtonAria: string;
   startRecordingButtonAria: string;
   submitQuestionButton: string;
-  gettingAnswerButton: string;
+  gettingAnswerButton: string; // Kept, though text might change
   aiThinking: string;
   yourQuestionLabel: string;
   aiAnswerLabel: string;
@@ -104,7 +108,7 @@ type TranslationKeys = {
 const translationsData: Record<Locale, TranslationKeys> = {
   en: {
     appSubtitle: 'Your personal AI-powered axolotl travel tour guide.',
-    heroImageAlt: 'A stylized, friendly axolotl peeking over the Eiffel Tower.',
+    heroImageAlt: 'A travel-themed banner image.',
     footerCopyright: 'Aijolot Travel Guide. AI-powered by Genkit & External Agent.',
     toastNarrativeGeneratedTitle: 'Narrative Ready!',
     toastNarrativeGeneratedDescription: (location) => `Your agent response for ${location || 'the location'} is ready.`,
@@ -115,9 +119,8 @@ const translationsData: Record<Locale, TranslationKeys> = {
     describeLocationSectionTitle: 'Or, Type a Place to Explore',
     currentLocationSectionTitle: "Discover What's Around You",
     orSeparatorText: "OR",
-    locationNameLabel: 'Location Name or Description',
     locationNamePlaceholder: 'e.g., Eiffel Tower, Paris',
-    locationNameDescription: 'Type the name or a brief description.',
+    locationNameDescription: 'Type the name or a brief description of a landmark.',
     autocompleteLoading: 'Loading suggestions...',
     autocompleteNoResults: 'No results found.',
     autocompleteErrorTitle: 'Autocomplete Error',
@@ -132,8 +135,8 @@ const translationsData: Record<Locale, TranslationKeys> = {
     geolocationTimeout: 'The request to get user location timed out.',
     geolocationUnknownError: 'An unknown error occurred while trying to get your location.',
     geolocationErrorTitle: 'Location Error',
-    geolocationSuccessTitle: 'Location Acquired',
-    geolocationSuccessDescription: 'Your current location will be sent to the agent.',
+    geolocationSuccessTitle: 'Location Acquired!',
+    geolocationSuccessDescription: 'Your current location will be used to find nearby spots or provide context.',
     geolocationCoordinates: 'Coordinates',
     cameraAccessProblemTitle: 'Camera Access Problem',
     cameraAccessProblemDescription: 'Could not access the camera. Please ensure permissions are granted.',
@@ -152,6 +155,10 @@ const translationsData: Record<Locale, TranslationKeys> = {
     generateNarrativeButton: 'Get Agent Response',
     generatingButton: 'Contacting Agent...',
     loadingYear: 'Loading year...',
+    nearbyPlacesTitle: "Great suggestions to explore near you! Where should we go?",
+    nearbyPlacesErrorTitle: "Nearby Spots Error",
+    nearbyPlacesNoResultsTitle: "No Nearby Spots Found",
+    nearbyPlacesNoResultsDescription: "Couldn't find specific tourist spots nearby. Try a broader search or describe a place.",
     narrativeDisplayTitle: 'Aijolot Chat',
     narrativeDisplayDescription: 'Interact with your AI travel guide.',
     identifiedLocationLabel: 'Location Context:',
@@ -195,7 +202,7 @@ const translationsData: Record<Locale, TranslationKeys> = {
   },
   es: {
     appSubtitle: 'Tu guía turístico personal axolotl impulsado por IA.',
-    heroImageAlt: 'Un ajolote estilizado y amigable asomándose sobre la Torre Eiffel.',
+    heroImageAlt: 'Una imagen de banner con temática de viajes.',
     footerCopyright: 'Aijolot Travel Guide. IA impulsada por Genkit y Agente Externo.',
     toastNarrativeGeneratedTitle: '¡Respuesta del Agente Lista!',
     toastNarrativeGeneratedDescription: (location) => `La respuesta de tu agente para ${location || 'la ubicación'} está lista.`,
@@ -206,9 +213,8 @@ const translationsData: Record<Locale, TranslationKeys> = {
     describeLocationSectionTitle: 'O, Escribe un Lugar para Explorar',
     currentLocationSectionTitle: 'Descubre Qué Hay a tu Alrededor',
     orSeparatorText: "O",
-    locationNameLabel: 'Nombre o Descripción de la Ubicación',
     locationNamePlaceholder: 'Ej: Torre Eiffel, París',
-    locationNameDescription: 'Escribe el nombre o una breve descripción.',
+    locationNameDescription: 'Escribe el nombre o una breve descripción de un lugar emblemático.',
     autocompleteLoading: 'Cargando sugerencias...',
     autocompleteNoResults: 'No se encontraron resultados.',
     autocompleteErrorTitle: 'Error de Autocompletar',
@@ -223,8 +229,8 @@ const translationsData: Record<Locale, TranslationKeys> = {
     geolocationTimeout: 'La solicitud para obtener la ubicación del usuario expiró.',
     geolocationUnknownError: 'Ocurrió un error desconocido al intentar obtener tu ubicación.',
     geolocationErrorTitle: 'Error de Ubicación',
-    geolocationSuccessTitle: 'Ubicación Adquirida',
-    geolocationSuccessDescription: 'Tu ubicación actual se enviará al agente.',
+    geolocationSuccessTitle: '¡Ubicación Adquirida!',
+    geolocationSuccessDescription: 'Tu ubicación actual se usará para encontrar lugares cercanos o proporcionar contexto.',
     geolocationCoordinates: 'Coordenadas',
     cameraAccessProblemTitle: 'Problema de Acceso a la Cámara',
     cameraAccessProblemDescription: 'No se pudo acceder a la cámara. Asegúrate de que los permisos estén concedidos.',
@@ -243,6 +249,10 @@ const translationsData: Record<Locale, TranslationKeys> = {
     generateNarrativeButton: 'Obtener Respuesta del Agente',
     generatingButton: 'Contactando Agente...',
     loadingYear: 'Cargando año...',
+    nearbyPlacesTitle: "¡Buenas sugerencias para explorar cerca de ti! ¿A dónde vamos?",
+    nearbyPlacesErrorTitle: "Error en Lugares Cercanos",
+    nearbyPlacesNoResultsTitle: "No se Encontraron Lugares Cercanos",
+    nearbyPlacesNoResultsDescription: "No se pudieron encontrar lugares turísticos específicos cerca. Intenta una búsqueda más amplia o describe un lugar.",
     narrativeDisplayTitle: 'Chat Aijolot',
     narrativeDisplayDescription: 'Interactúa con tu guía turístico IA.',
     identifiedLocationLabel: 'Contexto de Ubicación:',
@@ -286,7 +296,7 @@ const translationsData: Record<Locale, TranslationKeys> = {
   },
   fr: {
     appSubtitle: 'Votre guide touristique personnel axolotl alimenté par IA.',
-    heroImageAlt: 'Un axolotl stylisé et amical regardant par-dessus la Tour Eiffel.',
+    heroImageAlt: 'Une image de bannière sur le thème du voyage.',
     footerCopyright: 'Aijolot Travel Guide. IA alimentée par Genkit & Agent Externe.',
     toastNarrativeGeneratedTitle: "Réponse de l'Agent Prête !",
     toastNarrativeGeneratedDescription: (location) => `La réponse de votre agent pour ${location || "l'endroit"} est prête.`,
@@ -297,9 +307,8 @@ const translationsData: Record<Locale, TranslationKeys> = {
     describeLocationSectionTitle: "Ou, Décrivez un Lieu à Explorer",
     currentLocationSectionTitle: 'Découvrez Ce Qui Vous Entoure',
     orSeparatorText: "OU",
-    locationNameLabel: 'Nom ou Description du Lieu',
     locationNamePlaceholder: 'Ex: Tour Eiffel, Paris',
-    locationNameDescription: 'Tapez le nom ou une brève description.',
+    locationNameDescription: 'Tapez le nom ou une brève description d’un lieu d’intérêt.',
     autocompleteLoading: 'Chargement des suggestions...',
     autocompleteNoResults: 'Aucun résultat trouvé.',
     autocompleteErrorTitle: "Erreur d'Autocomplétion",
@@ -314,8 +323,8 @@ const translationsData: Record<Locale, TranslationKeys> = {
     geolocationTimeout: 'La demande de récupération de la position utilisateur a expiré.',
     geolocationUnknownError: 'Une erreur inconnue est survenue lors de la tentative de récupération de votre position.',
     geolocationErrorTitle: 'Erreur de Position',
-    geolocationSuccessTitle: 'Position Acquise',
-    geolocationSuccessDescription: 'Votre position actuelle sera envoyée à l’agent.',
+    geolocationSuccessTitle: 'Position Acquise !',
+    geolocationSuccessDescription: 'Votre position actuelle sera utilisée pour trouver des lieux proches ou fournir du contexte.',
     geolocationCoordinates: 'Coordonnées',
     cameraAccessProblemTitle: "Problème d'Accès Caméra",
     cameraAccessProblemDescription: "Impossible d'accéder à la caméra. Veuillez vous assurer que les autorisations sont accordées.",
@@ -334,6 +343,10 @@ const translationsData: Record<Locale, TranslationKeys> = {
     generateNarrativeButton: "Obtenir Réponse de l'Agent",
     generatingButton: "Contact de l'Agent...",
     loadingYear: "Chargement de l'année...",
+    nearbyPlacesTitle: "Belles suggestions à explorer près de chez vous ! Où allons-nous ?",
+    nearbyPlacesErrorTitle: "Erreur Lieux Proches",
+    nearbyPlacesNoResultsTitle: "Aucun Lieu Proche Trouvé",
+    nearbyPlacesNoResultsDescription: "Impossible de trouver des lieux touristiques spécifiques à proximité. Essayez une recherche plus large ou décrivez un lieu.",
     narrativeDisplayTitle: 'Chat Aijolot',
     narrativeDisplayDescription: "Interagissez avec votre guide touristique IA.",
     identifiedLocationLabel: 'Contexte du Lieu:',
@@ -381,5 +394,3 @@ export function useTranslations() {
   const { language } = useLanguage();
   return translationsData[language];
 }
-
-    

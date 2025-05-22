@@ -6,7 +6,7 @@ import type { GenerateImageDescriptionOutput } from "@/ai/flows/image-to-descrip
 import { narrationToAudio } from "@/ai/flows/narration-to-audio";
 import type { NarrationToAudioOutput } from "@/ai/flows/narration-to-audio";
 import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
-import { Client } from "@googlemaps/google-maps-services-js";
+import { Client, PlaceType2 } from "@googlemaps/google-maps-services-js";
 
 export interface TravelNarrativeResult {
   narrativeText: string;
@@ -55,17 +55,15 @@ export async function generateTravelNarrativeAction(
         return { error: "Failed to get description from the provided image. Please try a different image or ensure it's clear." };
       }
       identifiedLocationDescription = imageDescriptionResult.description;
-    } else if (locationQuery === USER_CURRENT_LOCATION_REQUEST_FLAG) {
-        if (latitude && longitude) {
-            identifiedLocationDescription = `Tell me about interesting places or hidden gems near my current location (Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}).`;
-        } else {
-            return { error: "Current location coordinates are not available for this request."};
-        }
+    } else if (locationQuery === USER_CURRENT_LOCATION_REQUEST_FLAG && latitude && longitude) {
+        // This case means user clicked "Use Current Location" but DID NOT select a specific suggested place.
+        // The form should ideally guide them to pick one, or the webhook should know how to interpret this.
+        identifiedLocationDescription = `Tell me about interesting places or hidden gems near my current location (Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}).`;
     } else if (locationQuery) {
+      // This covers both typed query and a selected nearby place name (which NarratorForm sets into locationQuery)
       identifiedLocationDescription = locationQuery;
     } else {
-      // This case should ideally be caught by form validation, but as a safeguard:
-      return { error: "Please provide a location input (image, text, or use current location)." };
+      return { error: "Please provide a location input (image, text, or use current location and select a suggestion)." };
     }
 
     const effectiveOutputLanguage = language;
@@ -103,7 +101,7 @@ export async function generateTravelNarrativeAction(
 
     let audioDataUriForResult = "";
     if (narrativeTextFromWebhook && narrativeTextFromWebhook.trim() !== "") {
-      console.log("Attempting to generate audio for main narrative. Language:", effectiveOutputLanguage);
+      console.log("Attempting to generate audio for main narrative. Language:", effectiveOutputLanguage, "Text:", narrativeTextFromWebhook.substring(0,50) + "...");
       const audioResult: NarrationToAudioOutput = await narrationToAudio({
         narratedText: narrativeTextFromWebhook,
         voice: effectiveOutputLanguage,
@@ -122,7 +120,7 @@ export async function generateTravelNarrativeAction(
     return {
       narrativeText: narrativeTextFromWebhook,
       audioDataUri: audioDataUriForResult,
-      locationDescription: identifiedLocationDescription, // Send back the description used for the prompt
+      locationDescription: identifiedLocationDescription, 
       outputLanguage: effectiveOutputLanguage,
       informationStyle,
       userId,
@@ -141,6 +139,7 @@ export async function generateTravelNarrativeAction(
 }
 
 export interface FollowUpServerInput {
+  currentNarrativeText: string; // Added for context in webhook
   locationDescription: string;
   userQuestion: string;
   language: string;
@@ -176,8 +175,7 @@ export async function generateFollowUpAnswerAction(
         'X-Latitude': input.latitude?.toString() || '',
         'X-Longitude': input.longitude?.toString() || '',
         'Follow-Up': "true",
-        // 'X-Current-Narrative' header removed as per user request
-        'X-Location-Context': input.locationDescription,
+        'X-Location-Context': input.locationDescription, 
       };
 
       console.log("Calling follow-up webhook with headers:", headers);
@@ -219,7 +217,6 @@ export async function generateFollowUpAnswerAction(
        console.warn("Skipping audio generation for follow-up: Webhook response text is empty.");
     }
 
-
     return {
       answerText: answerTextFromWebhook,
       answerAudioDataUri: audioDataUriForResult,
@@ -236,7 +233,8 @@ export async function generateFollowUpAnswerAction(
 
 
 export interface PlaceSuggestion {
-  description: string;
+  description: string; // For autocomplete, this is usually prediction.description
+                       // For nearby search, this will be place.name
   place_id: string;
 }
 
@@ -282,4 +280,58 @@ export async function getPlaceAutocompleteSuggestions(
   }
 }
 
-    
+
+export async function getNearbyTouristSpots(
+  latitude: number,
+  longitude: number
+): Promise<PlaceSuggestion[] | { error: string }> {
+  if (!process.env.GOOGLE_MAPS_API_KEY) {
+    console.error("Google Maps API key is not configured for Nearby Search.");
+    return { error: "Nearby places service is not configured." };
+  }
+
+  const client = new Client({});
+  try {
+    const response = await client.placesNearby({
+      params: {
+        location: { lat: latitude, lng: longitude },
+        radius: 2000, // Search within 2km
+        type: [ // Request multiple types relevant to tourists
+            PlaceType2.tourist_attraction,
+            PlaceType2.point_of_interest,
+            PlaceType2.landmark,
+            PlaceType2.museum,
+            PlaceType2.park,
+            PlaceType2.natural_feature
+        ], 
+        rankby: 'prominence', // Prioritize more prominent places
+        key: process.env.GOOGLE_MAPS_API_KEY,
+      },
+      timeout: 5000,
+    });
+
+    if (response.data.status === "OK") {
+      // Limit to top 5 relevant results and ensure they have names
+      const suggestions = response.data.results
+        .filter(place => place.name) 
+        .slice(0, 5)
+        .map((place) => ({
+          description: place.name!, // place.name should exist due to filter
+          place_id: place.place_id!,
+        }));
+      return suggestions;
+    } else if (response.data.status === "ZERO_RESULTS") {
+      return [];
+    } else {
+      console.error(
+        "Google Places Nearby Search API Error:",
+        response.data.status,
+        response.data.error_message
+      );
+      return { error: `Nearby search failed: ${response.data.status}` };
+    }
+  } catch (error) {
+    console.error("Error calling Google Places Nearby Search API:", error);
+    return { error: "Could not fetch nearby tourist spots." };
+  }
+}

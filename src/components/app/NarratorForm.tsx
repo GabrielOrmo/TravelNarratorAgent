@@ -3,7 +3,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Wand2, Castle, HelpCircle, Newspaper, Upload, Camera, Image as ImageIcon, AlertTriangle, Search, MapPin, LocateFixed, Loader2, XCircle, Compass, Video, FileImage } from "lucide-react";
+import { Wand2, Castle, HelpCircle, Newspaper, Upload, Camera, Image as ImageIcon, AlertTriangle, Search, MapPin, LocateFixed, Loader2, XCircle, Compass, Video, FileImage, CheckCircle2, ExternalLink, ListChecks } from "lucide-react";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import NextImage from "next/image";
 
@@ -25,7 +25,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import type { TravelNarrativeResult, PlaceSuggestion } from "@/app/actions";
-import { getPlaceAutocompleteSuggestions, generateTravelNarrativeAction } from "@/app/actions";
+import { getPlaceAutocompleteSuggestions, generateTravelNarrativeAction, getNearbyTouristSpots } from "@/app/actions";
 import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
 import { useLanguage, type Locale } from "@/contexts/LanguageContext";
 import { useTranslations } from "@/lib/translations";
@@ -64,13 +64,19 @@ export function NarratorForm({
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+  const [isFetchingGeoLocation, setIsFetchingGeoLocation] = useState(false);
 
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
+  const [isFetchingAutocomplete, setIsFetchingAutocomplete] = useState(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const suggestionsContainerRef = useRef<HTMLDivElement>(null);
+
+  const [nearbyPlaceSuggestions, setNearbyPlaceSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [selectedNearbyPlaceName, setSelectedNearbyPlaceName] = useState<string | null>(null);
+  const [isFetchingNearbyPlaces, setIsFetchingNearbyPlaces] = useState(false);
+  const [nearbyPlacesError, setNearbyPlacesError] = useState<string | null>(null);
+
 
   const informationStyles = [
     { id: "Historical", label: t.styleHistoricalLabel, description: t.styleHistoricalDescription, icon: Castle },
@@ -106,7 +112,8 @@ export function NarratorForm({
     setHasCameraPermission(null);
   }, []);
 
-  const clearImageAndCamera = useCallback(() => {
+  const clearAllLocationInputs = useCallback(() => {
+    // Clear image and camera
     setImagePreview(null);
     form.setValue("imageDataUri", undefined, { shouldValidate: true });
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -114,22 +121,29 @@ export function NarratorForm({
       stopCameraTracks();
       setShowCameraView(false);
     }
+    // Clear text query and its suggestions
+    form.setValue("locationQuery", undefined, { shouldValidate: true });
+    setSuggestions([]);
+    setShowSuggestions(false);
+    // Clear geolocation and nearby places
+    setLocationError(null);
+    setLatitude(null);
+    setLongitude(null);
+    setNearbyPlaceSuggestions([]);
+    setSelectedNearbyPlaceName(null);
+    setNearbyPlacesError(null);
   }, [form, stopCameraTracks, showCameraView]);
+
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      clearAllLocationInputs(); // Clear other inputs first
       const reader = new FileReader();
       reader.onloadend = () => {
         const dataUri = reader.result as string;
-        form.setValue("locationQuery", undefined, { shouldValidate: true });
         form.setValue("imageDataUri", dataUri, { shouldValidate: true });
         setImagePreview(dataUri);
-        setShowCameraView(false); // Ensure camera view is closed
-        stopCameraTracks(); // Ensure camera tracks are stopped
-        setLocationError(null); // Clear location error if any
-        setLatitude(null);      // Clear coordinates
-        setLongitude(null);
       };
       reader.readAsDataURL(file);
     }
@@ -168,9 +182,8 @@ export function NarratorForm({
     if (showCameraView && hasCameraPermission === null && isMounted) {
       startCamera();
     }
-    // Cleanup camera tracks if component unmounts or camera view is hidden
     return () => {
-        if (!showCameraView) {
+        if (!showCameraView && videoRef.current?.srcObject) { // Ensure cleanup if camera was active
              stopCameraTracks();
         }
     };
@@ -185,42 +198,55 @@ export function NarratorForm({
       canvas.height = video.videoHeight;
       const context = canvas.getContext('2d');
       if (context) {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        clearAllLocationInputs(); // Clear other inputs
         const dataUri = canvas.toDataURL('image/jpeg');
-        form.setValue("locationQuery", undefined, { shouldValidate: true });
         form.setValue("imageDataUri", dataUri, { shouldValidate: true });
         setImagePreview(dataUri);
         setShowCameraView(false);
         stopCameraTracks();
-        setLocationError(null);
-        setLatitude(null);
-        setLongitude(null);
       }
     }
   };
 
-  const handleRequestLocation = () => {
-    clearImageAndCamera();
-    form.setValue("imageDataUri", undefined, { shouldValidate: true }); // ensure image is cleared
-    // form.setValue("locationQuery", undefined, { shouldValidate: true }); // Clear text query too
+  const handleRequestLocation = async () => {
+    clearAllLocationInputs(); // Clear other inputs first
 
     if (!navigator.geolocation) {
       setLocationError(t.geolocationNotSupported);
       toast({ variant: "destructive", title: t.geolocationErrorTitle, description: t.geolocationNotSupported });
       return;
     }
-    setIsFetchingLocation(true);
+    setIsFetchingGeoLocation(true);
     setLocationError(null);
+    setNearbyPlacesError(null); // Clear previous nearby places error
     setLatitude(null);
     setLongitude(null);
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLatitude(position.coords.latitude);
-        setLongitude(position.coords.longitude);
-        setIsFetchingLocation(false);
+      async (position) => {
+        const currentLat = position.coords.latitude;
+        const currentLon = position.coords.longitude;
+        setLatitude(currentLat);
+        setLongitude(currentLon);
+        setIsFetchingGeoLocation(false);
         form.setValue("locationQuery", USER_CURRENT_LOCATION_REQUEST_FLAG, { shouldValidate: true });
         toast({ title: t.geolocationSuccessTitle, description: t.geolocationSuccessDescription });
+
+        // Now fetch nearby tourist spots
+        setIsFetchingNearbyPlaces(true);
+        setNearbyPlacesError(null);
+        const spots = await getNearbyTouristSpots(currentLat, currentLon);
+        setIsFetchingNearbyPlaces(false);
+        if ("error" in spots) {
+          setNearbyPlacesError(spots.error);
+          toast({variant: "destructive", title: t.nearbyPlacesErrorTitle, description: spots.error});
+          setNearbyPlaceSuggestions([]);
+        } else {
+          setNearbyPlaceSuggestions(spots);
+          if (spots.length === 0) {
+            toast({ title: t.nearbyPlacesNoResultsTitle, description: t.nearbyPlacesNoResultsDescription });
+          }
+        }
       },
       (error) => {
         let message = "";
@@ -231,7 +257,7 @@ export function NarratorForm({
             default: message = t.geolocationUnknownError; break;
         }
         setLocationError(message);
-        setIsFetchingLocation(false);
+        setIsFetchingGeoLocation(false);
         toast({ variant: "destructive", title: t.geolocationErrorTitle, description: message });
       }
     );
@@ -242,10 +268,18 @@ export function NarratorForm({
       onGenerationError("User ID not available. Please try again.");
       return;
     }
-    setShowSuggestions(false);
+    setShowSuggestions(false); // Hide autocomplete suggestions on submit
+
+    let finalData = { ...data };
+    // If a nearby place was selected, its name becomes the locationQuery for the action
+    if (selectedNearbyPlaceName) {
+      finalData.locationQuery = selectedNearbyPlaceName;
+      finalData.imageDataUri = undefined; // Prioritize selected place over any lingering image data
+    }
+    
     onGenerationStart();
     try {
-      const result = await generateTravelNarrativeAction(data, currentLanguage, userId, latitude, longitude);
+      const result = await generateTravelNarrativeAction(finalData, currentLanguage, userId, latitude, longitude);
       if ("error" in result) {
         onGenerationError(result.error);
       } else {
@@ -259,29 +293,26 @@ export function NarratorForm({
 
   const handleLocationQueryChange = async (query: string) => {
     form.setValue("locationQuery", query, { shouldValidate: true });
-    if (query.trim().length > 0) { // Only clear image if user is actively typing a query
-        clearImageAndCamera();
-        setLocationError(null);
-        setLatitude(null);
-        setLongitude(null);
+    if (query.trim().length > 0) {
+        clearAllLocationInputs(); // Clear other inputs when user types
+        form.setValue("locationQuery", query, { shouldValidate: true }); // Re-set after clearing
     }
-
 
     if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
 
     if (query.trim().length < 2) {
       setSuggestions([]);
       setShowSuggestions(false);
-      setIsFetchingSuggestions(false);
+      setIsFetchingAutocomplete(false);
       return;
     }
 
-    setIsFetchingSuggestions(true);
+    setIsFetchingAutocomplete(true);
     setShowSuggestions(true);
 
     debounceTimeoutRef.current = setTimeout(async () => {
       const result = await getPlaceAutocompleteSuggestions(query);
-      setIsFetchingSuggestions(false);
+      setIsFetchingAutocomplete(false);
       if ("error" in result) {
         toast({ variant: "destructive", title: t.autocompleteErrorTitle, description: result.error });
         setSuggestions([]);
@@ -293,14 +324,25 @@ export function NarratorForm({
   };
 
   const handleSuggestionClick = (suggestion: PlaceSuggestion) => {
+    clearAllLocationInputs(); // Clear other inputs
     form.setValue("locationQuery", suggestion.description, { shouldValidate: true });
-    clearImageAndCamera();
-    setLocationError(null);
-    setLatitude(null);
-    setLongitude(null);
     setSuggestions([]);
     setShowSuggestions(false);
   };
+  
+  const handleNearbyPlaceSelect = (placeName: string) => {
+    setSelectedNearbyPlaceName(placeName);
+    // Optionally, update locationQuery here or let onSubmit handle it
+    // form.setValue("locationQuery", placeName, { shouldValidate: true });
+    // Clear image/camera if a nearby place is selected
+    setImagePreview(null);
+    form.setValue("imageDataUri", undefined);
+    if (showCameraView) {
+      stopCameraTracks();
+      setShowCameraView(false);
+    }
+  };
+
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -313,22 +355,13 @@ export function NarratorForm({
   }, []);
 
   const handleUploadButtonClick = () => {
-    clearImageAndCamera();
-    form.setValue("locationQuery", undefined, {shouldValidate: true});
-    setLocationError(null);
-    setLatitude(null);
-    setLongitude(null);
+    clearAllLocationInputs();
     fileInputRef.current?.click();
   }
 
   const handleCameraButtonClick = () => {
-    clearImageAndCamera();
-    form.setValue("locationQuery", undefined, {shouldValidate: true});
-    setLocationError(null);
-    setLatitude(null);
-    setLongitude(null);
+    clearAllLocationInputs();
     setShowCameraView(true);
-    // startCamera will be called by useEffect
   }
 
   const handleCancelCamera = () => {
@@ -336,10 +369,10 @@ export function NarratorForm({
     stopCameraTracks();
   }
 
-  const FormSeparator = () => (
-    <div className="my-4 flex items-center">
+  const FormSeparator = ({text = t.orSeparatorText}: {text?: string}) => (
+    <div className="my-6 flex items-center">
       <Separator className="flex-1" />
-      <span className="mx-4 text-xs uppercase text-muted-foreground">{t.orSeparatorText}</span>
+      <span className="mx-4 text-xs uppercase text-muted-foreground">{text}</span>
       <Separator className="flex-1" />
     </div>
   );
@@ -374,7 +407,7 @@ export function NarratorForm({
             <Skeleton className="h-10 w-full" /> {/* Current Location Button */}
           </div>
            {/* Information Style Skeleton */}
-          <div className="space-y-3 mt-4">
+          <div className="space-y-3 mt-6">
             <Skeleton className="h-5 w-1/3 mb-2" />
             {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-md border p-3 mt-2" />)}
           </div>
@@ -403,14 +436,14 @@ export function NarratorForm({
 
             {/* Section 1: Visual Input */}
             <div>
-              <FormLabel className="text-sm font-medium">{t.imageInputSectionTitle}</FormLabel>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+              <FormLabel className="text-base font-semibold">{t.imageInputSectionTitle}</FormLabel>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                 <Button type="button" variant="outline" onClick={handleCameraButtonClick} disabled={isGenerating} className="gap-1 w-full">
-                  <Video /> {/* Changed from Camera for distinction */}
+                  <Video className="h-5 w-5" />
                   {t.scanWithCameraButton}
                 </Button>
                 <Button type="button" variant="outline" onClick={handleUploadButtonClick} disabled={isGenerating} className="gap-1 w-full">
-                  <FileImage /> {/* Changed from Upload for distinction */}
+                  <FileImage className="h-5 w-5" />
                   {t.uploadImageButton}
                 </Button>
               </div>
@@ -418,7 +451,7 @@ export function NarratorForm({
               <canvas ref={canvasRef} className="hidden" />
 
               {showCameraView && (
-                <div className="mt-4 space-y-2">
+                <div className="mt-4 space-y-3 p-4 border rounded-md bg-muted/30">
                   {hasCameraPermission === false && (
                     <Alert variant="destructive">
                       <AlertTriangle className="h-4 w-4" />
@@ -427,32 +460,32 @@ export function NarratorForm({
                     </Alert>
                   )}
                    {(hasCameraPermission === null && isMounted) && <Skeleton className="w-full aspect-video bg-muted rounded-md" />}
-                  <div className={cn("relative w-full aspect-video bg-muted rounded-md overflow-hidden", {"hidden": hasCameraPermission === null && isMounted})}>
+                  <div className={cn("relative w-full aspect-video bg-background rounded-md overflow-hidden border", {"hidden": hasCameraPermission === null && isMounted || hasCameraPermission === false})}>
                     <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted data-testid="camera-feed"/>
                   </div>
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     <Button type="button" onClick={handleCaptureImage} disabled={isGenerating || hasCameraPermission === false || !videoRef.current?.srcObject}>
-                      <Camera className="mr-2"/> {t.captureImageButton}
+                      <Camera className="mr-2 h-5 w-5"/> {t.captureImageButton}
                     </Button>
                      <Button type="button" variant="outline" onClick={handleCancelCamera} disabled={isGenerating}>
-                      <XCircle className="mr-2"/> {t.cancelCameraButton}
+                      <XCircle className="mr-2 h-5 w-5"/> {t.cancelCameraButton}
                     </Button>
                   </div>
                 </div>
               )}
 
               {imagePreview && !showCameraView && (
-                <div className="mt-4 space-y-2">
+                <div className="mt-4 space-y-3 p-4 border rounded-md bg-muted/30">
                   <h4 className="text-sm font-medium">{t.imagePreviewTitle}</h4>
-                  <div className="relative w-full aspect-video border rounded-md overflow-hidden">
+                  <div className="relative w-full aspect-video border rounded-md overflow-hidden bg-background">
                     <NextImage src={imagePreview} alt={t.imagePreviewAlt} layout="fill" objectFit="contain" data-ai-hint="landmark photo"/>
                   </div>
-                  <Button variant="outline" size="sm" onClick={clearImageAndCamera} disabled={isGenerating}>
-                    <XCircle className="mr-2"/> {t.clearImageButton}
+                  <Button variant="outline" size="sm" onClick={clearAllLocationInputs} disabled={isGenerating}>
+                    <XCircle className="mr-2 h-4 w-4"/> {t.clearImageButton}
                   </Button>
                 </div>
               )}
-              <FormMessage>{form.formState.errors.imageDataUri?.message}</FormMessage>
+              <FormMessage className="mt-1">{form.formState.errors.imageDataUri?.message}</FormMessage>
             </div>
 
             <FormSeparator />
@@ -464,42 +497,45 @@ export function NarratorForm({
                 name="locationQuery"
                 render={({ field }) => (
                     <FormItem className="relative">
-                    <FormLabel className="text-sm font-medium">{t.describeLocationSectionTitle}</FormLabel>
+                    <FormLabel className="text-base font-semibold">{t.describeLocationSectionTitle}</FormLabel>
                     <FormControl>
-                        <Input
-                        type="text"
-                        placeholder={t.locationNamePlaceholder}
-                        {...field}
-                        value={field.value === USER_CURRENT_LOCATION_REQUEST_FLAG ? "" : (field.value ?? "")} // Don't show flag in input
-                        onChange={(e) => handleLocationQueryChange(e.target.value)}
-                        onFocus={() => { if (field.value && field.value !== USER_CURRENT_LOCATION_REQUEST_FLAG && suggestions.length > 0) setShowSuggestions(true); }}
-                        autoComplete="off"
-                        disabled={showCameraView || isGenerating}
-                        className="mt-1"
-                        />
+                        <div className="relative mt-2">
+                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+                            <Input
+                            type="text"
+                            placeholder={t.locationNamePlaceholder}
+                            {...field}
+                            value={field.value === USER_CURRENT_LOCATION_REQUEST_FLAG ? "" : (field.value ?? "")}
+                            onChange={(e) => handleLocationQueryChange(e.target.value)}
+                            onFocus={() => { if (field.value && field.value !== USER_CURRENT_LOCATION_REQUEST_FLAG && suggestions.length > 0) setShowSuggestions(true); }}
+                            autoComplete="off"
+                            disabled={showCameraView || isGenerating || isFetchingNearbyPlaces}
+                            className="pl-10" 
+                            />
+                        </div>
                     </FormControl>
                     {showSuggestions && (
                         <div
                         ref={suggestionsContainerRef}
                         className="absolute z-10 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-60 overflow-y-auto"
                         >
-                        {isFetchingSuggestions && suggestions.length === 0 && (
+                        {isFetchingAutocomplete && suggestions.length === 0 && (
                             <div className="p-3 text-sm text-muted-foreground flex items-center justify-center">
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             {t.autocompleteLoading}
                             </div>
                         )}
-                        {!isFetchingSuggestions && suggestions.length === 0 && form.getValues("locationQuery") && form.getValues("locationQuery")!.length >=2 && (
+                        {!isFetchingAutocomplete && suggestions.length === 0 && form.getValues("locationQuery") && form.getValues("locationQuery")!.length >=2 && (
                             <div className="p-3 text-sm text-muted-foreground">{t.autocompleteNoResults}</div>
                         )}
                         {suggestions.map((suggestion) => (
-                            <Button type="button" variant="ghost" key={suggestion.place_id} onClick={() => handleSuggestionClick(suggestion)} className="w-full justify-start text-left px-3 py-2 h-auto">
-                            {suggestion.description}
+                            <Button type="button" variant="ghost" key={suggestion.place_id} onClick={() => handleSuggestionClick(suggestion)} className="w-full justify-start text-left px-3 py-2 h-auto text-sm">
+                             <MapPin className="mr-2 h-4 w-4 text-muted-foreground" /> {suggestion.description}
                             </Button>
                         ))}
                         </div>
                     )}
-                    <FormDescription className="mt-1">{t.locationNameDescription}</FormDescription>
+                    <FormDescription className="mt-1 text-xs">{t.locationNameDescription}</FormDescription>
                     <FormMessage />
                     </FormItem>
                 )}
@@ -510,34 +546,77 @@ export function NarratorForm({
 
             {/* Section 3: Current Location */}
             <div>
-                <FormLabel className="text-sm font-medium">{t.currentLocationSectionTitle}</FormLabel>
-                <Button type="button" variant="outline" onClick={handleRequestLocation} disabled={isFetchingLocation || isGenerating} className="gap-1 w-full mt-2">
-                    <LocateFixed className={cn("mr-2", isFetchingLocation ? 'animate-pulse' : '')} />
+                <FormLabel className="text-base font-semibold">{t.currentLocationSectionTitle}</FormLabel>
+                <Button type="button" variant="outline" onClick={handleRequestLocation} disabled={isFetchingGeoLocation || isGenerating || isFetchingNearbyPlaces} className="gap-1 w-full mt-2">
+                    <LocateFixed className={cn("mr-2 h-5 w-5", isFetchingGeoLocation ? 'animate-pulse' : '')} />
                     {t.useCurrentLocationButton}
                 </Button>
                  {locationError && (
-                <Alert variant="destructive" className="mt-2"><AlertTriangle className="h-4 w-4" /><AlertTitle>{t.geolocationErrorTitle}</AlertTitle><AlertDescription>{locationError}</AlertDescription></Alert>
-              )}
-              {latitude && longitude && !locationError && (
-                <Alert variant="default" className="mt-2 bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700">
-                  <LocateFixed className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  <AlertTitle className="text-green-700 dark:text-green-300">{t.geolocationSuccessTitle}</AlertTitle>
-                  <AlertDescription className="text-green-600 dark:text-green-400">
-                    {t.geolocationCoordinates}: {latitude.toFixed(4)}, {longitude.toFixed(4)}
-                  </AlertDescription>
-                </Alert>
-              )}
+                  <Alert variant="destructive" className="mt-3"><AlertTriangle className="h-4 w-4" /><AlertTitle>{t.geolocationErrorTitle}</AlertTitle><AlertDescription>{locationError}</AlertDescription></Alert>
+                )}
+                {latitude && longitude && !locationError && (
+                  <Alert variant="default" className="mt-3 bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700">
+                    <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    <AlertTitle className="text-green-700 dark:text-green-300">{t.geolocationSuccessTitle}</AlertTitle>
+                    <AlertDescription className="text-green-600 dark:text-green-400">
+                      {t.geolocationCoordinates}: {latitude.toFixed(4)}, {longitude.toFixed(4)}
+                    </AlertDescription>
+                  </Alert>
+                )}
             </div>
-             <FormMessage>{form.formState.errors.root?.message}</FormMessage>
+            
+            {/* Nearby Tourist Spots Suggestions */}
+            {isFetchingNearbyPlaces && (
+              <div className="mt-4 space-y-2">
+                <Skeleton className="h-5 w-1/2 mb-2" />
+                <Skeleton className="h-10 w-full rounded-md" />
+                <Skeleton className="h-10 w-full rounded-md" />
+                <Skeleton className="h-10 w-full rounded-md" />
+              </div>
+            )}
+            {nearbyPlacesError && !isFetchingNearbyPlaces &&(
+                 <Alert variant="destructive" className="mt-3">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>{t.nearbyPlacesErrorTitle}</AlertTitle>
+                    <AlertDescription>{nearbyPlacesError}</AlertDescription>
+                </Alert>
+            )}
+            {!isFetchingNearbyPlaces && nearbyPlaceSuggestions.length > 0 && (
+              <div className="mt-6 space-y-3 p-4 border rounded-lg bg-muted/20">
+                <h3 className="text-md font-semibold flex items-center gap-2">
+                  <ListChecks className="h-5 w-5 text-primary"/>
+                  {t.nearbyPlacesTitle}
+                </h3>
+                <div className="grid grid-cols-1 gap-2">
+                  {nearbyPlaceSuggestions.map((spot) => (
+                    <Button
+                      key={spot.place_id}
+                      type="button"
+                      variant={selectedNearbyPlaceName === spot.description ? "default" : "outline"}
+                      className={cn(
+                        "w-full justify-start text-left h-auto py-2.5 px-3 text-sm",
+                        selectedNearbyPlaceName === spot.description && "ring-2 ring-primary ring-offset-2"
+                      )}
+                      onClick={() => handleNearbyPlaceSelect(spot.description)}
+                    >
+                      <ExternalLink className="mr-2 h-4 w-4 text-muted-foreground"/>
+                      {spot.description}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
 
+
+             <FormMessage className="mt-1">{form.formState.errors.root?.message}</FormMessage>
 
             {/* Information Style */}
             <FormField
               control={form.control}
               name="informationStyle"
               render={({ field }) => (
-                <FormItem className="space-y-3 pt-2"> {/* Added pt-2 for spacing */}
-                  <FormLabel>{t.informationStyleLabel}</FormLabel>
+                <FormItem className="space-y-3 pt-4"> 
+                  <FormLabel className="text-base font-semibold">{t.informationStyleLabel}</FormLabel>
                   <FormControl>
                     <RadioGroup
                       onValueChange={field.onChange}
@@ -550,6 +629,7 @@ export function NarratorForm({
                             value={style.id}
                             id={`style-${style.id.toLowerCase()}`}
                             className="peer sr-only"
+                            disabled={isGenerating}
                           />
                           <Label
                             htmlFor={`style-${style.id.toLowerCase()}`}
@@ -557,7 +637,8 @@ export function NarratorForm({
                               "flex flex-col p-4 border rounded-lg cursor-pointer transition-colors",
                               "hover:bg-accent/10 dark:hover:bg-accent/20",
                               "peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-accent peer-data-[state=checked]:text-accent-foreground",
-                              field.value === style.id ? "border-primary bg-accent text-accent-foreground" : "bg-card text-card-foreground border-border"
+                              field.value === style.id ? "border-primary bg-accent text-accent-foreground" : "bg-card text-card-foreground border-border",
+                              isGenerating && "opacity-50 cursor-not-allowed"
                             )}
                           >
                             <div className="flex items-center gap-2">
@@ -578,8 +659,8 @@ export function NarratorForm({
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={isGenerating || !form.formState.isValid || !userId} className="w-full">
-              <Wand2 className="mr-2 h-4 w-4" />
+            <Button type="submit" disabled={isGenerating || !form.formState.isValid || !userId || isFetchingNearbyPlaces || isFetchingGeoLocation || isFetchingAutocomplete } className="w-full text-base py-3">
+              <Wand2 className="mr-2 h-5 w-5" />
               {isGenerating ? t.generatingButton : t.generateNarrativeButton}
             </Button>
           </CardFooter>
@@ -588,5 +669,3 @@ export function NarratorForm({
     </Card>
   );
 }
-
-    
