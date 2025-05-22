@@ -59,13 +59,15 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-background to-muted/30">
-      {/* Header: Logo and Language Switcher */}
-      <div className="container mx-auto px-4 py-4">
-        <Header />
+      {/* Fixed Header: Logo and Language Switcher */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-background shadow-md">
+        <div className="container mx-auto px-4 py-4">
+          <Header />
+        </div>
       </div>
 
       {/* Hero Section */}
-      <div className="relative h-72 sm:h-80 md:h-96 w-full text-white">
+      <div className="relative h-72 sm:h-80 md:h-96 w-full text-white pt-20"> {/* Added pt-20 for fixed header */}
         <Image
           src="/banner.png"
           alt={t.heroImageAlt}
