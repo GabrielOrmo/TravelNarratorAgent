@@ -4,8 +4,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 type TranslationKeys = {
   // Header / Hero
-  appSubtitle: string; 
-  heroImageAlt: string; 
+  appSubtitle: string;
+  heroImageAlt: string;
   // Page
   footerCopyright: string;
   toastNarrativeGeneratedTitle: string;
@@ -19,11 +19,11 @@ type TranslationKeys = {
   locationNameDescription: string;
   autocompleteLoading: string;
   autocompleteNoResults: string;
-  autocompleteErrorTitle: string; // Added
+  autocompleteErrorTitle: string;
   useCurrentLocationButton: string;
-  scanWithCameraButton: string; // Added
-  uploadImageButton: string; // Added
-  cancelCameraButton: string; // Added
+  scanWithCameraButton: string;
+  uploadImageButton: string;
+  cancelCameraButton: string;
   fetchingLocationButton: string;
   geolocationNotSupported: string;
   geolocationPermissionDenied: string;
@@ -39,7 +39,7 @@ type TranslationKeys = {
   cameraNotSupported: string;
   captureImageButton: string;
   imagePreviewTitle: string;
-  imagePreviewAlt: string; // Added
+  imagePreviewAlt: string;
   clearImageButton: string;
   informationStyleLabel: string;
   styleHistoricalLabel: string;
@@ -110,7 +110,7 @@ const translationsData: Record<Locale, TranslationKeys> = {
     autocompleteNoResults: 'No results found.',
     autocompleteErrorTitle: 'Autocomplete Error',
     useCurrentLocationButton: 'Current Location',
-    scanWithCameraButton: 'Scan with Camera',
+    scanWithCameraButton: 'Scan w/ Camera',
     uploadImageButton: 'Upload Image',
     cancelCameraButton: 'Cancel Camera',
     fetchingLocationButton: 'Fetching Location...',
@@ -194,7 +194,7 @@ const translationsData: Record<Locale, TranslationKeys> = {
     autocompleteNoResults: 'No se encontraron resultados.',
     autocompleteErrorTitle: 'Error de Autocompletar',
     useCurrentLocationButton: 'Ubicación Actual',
-    scanWithCameraButton: 'Escanear con Cámara',
+    scanWithCameraButton: 'Escanear c/ Cámara',
     uploadImageButton: 'Subir Imagen',
     cancelCameraButton: 'Cancelar Cámara',
     fetchingLocationButton: 'Obteniendo Ubicación...',
@@ -278,7 +278,7 @@ const translationsData: Record<Locale, TranslationKeys> = {
     autocompleteNoResults: 'Aucun résultat trouvé.',
     autocompleteErrorTitle: "Erreur d'Autocomplétion",
     useCurrentLocationButton: 'Position Actuelle',
-    scanWithCameraButton: 'Scanner avec Caméra',
+    scanWithCameraButton: 'Scanner av/ Caméra',
     uploadImageButton: 'Télécharger Image',
     cancelCameraButton: 'Annuler Caméra',
     fetchingLocationButton: 'Récupération Position...',
