@@ -36,8 +36,8 @@ export function Header() {
         <NextImage 
           src={logoPath} 
           alt="Aijolot Travel Guide Logo" 
-          width={96} 
-          height={96} 
+          width={144} 
+          height={144} 
           className="h-12 w-auto" 
           data-ai-hint="axolotl logo"
           priority
