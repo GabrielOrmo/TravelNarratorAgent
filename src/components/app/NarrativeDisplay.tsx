@@ -25,6 +25,8 @@ interface NarrativeDisplayProps {
   longitude?: number | null;
 }
 
+const TYPING_SPEED_MS = 30; // Adjust for desired speed
+
 export function NarrativeDisplay({ 
   narrativeText, 
   audioDataUri, 
@@ -41,6 +43,11 @@ export function NarrativeDisplay({
   const { language: currentGlobalLanguage } = useLanguage();
   const t = useTranslations();
 
+  const [displayedNarrativeText, setDisplayedNarrativeText] = useState("");
+  const [displayedFollowUpAnswerText, setDisplayedFollowUpAnswerText] = useState("");
+
+  const narrativeEndRef = useRef<HTMLDivElement>(null);
+  const followUpEndRef = useRef<HTMLDivElement>(null);
 
   const [isRecording, setIsRecording] = useState(false);
   const [transcribedQuestion, setTranscribedQuestion] = useState("");
@@ -48,6 +55,50 @@ export function NarrativeDisplay({
   const [followUpResult, setFollowUpResult] = useState<FollowUpResult | null>(null);
   const [speechRecognition, setSpeechRecognition] = useState<SpeechRecognition | null>(null);
   const [micPermissionError, setMicPermissionError] = useState<string | null>(null);
+
+  // Effect for main narrative typing animation
+  useEffect(() => {
+    if (!narrativeText) {
+      setDisplayedNarrativeText("");
+      return;
+    }
+
+    setDisplayedNarrativeText(""); // Reset before starting
+    let index = 0;
+    const intervalId = setInterval(() => {
+      setDisplayedNarrativeText((prev) => prev + narrativeText[index]);
+      narrativeEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      index++;
+      if (index === narrativeText.length) {
+        clearInterval(intervalId);
+      }
+    }, TYPING_SPEED_MS);
+
+    return () => clearInterval(intervalId);
+  }, [narrativeText]);
+
+  // Effect for follow-up answer typing animation
+  useEffect(() => {
+    const answer = followUpResult?.answerText;
+    if (!answer) {
+      setDisplayedFollowUpAnswerText("");
+      return;
+    }
+    
+    setDisplayedFollowUpAnswerText(""); // Reset before starting
+    let index = 0;
+    const intervalId = setInterval(() => {
+      setDisplayedFollowUpAnswerText((prev) => prev + answer[index]);
+      followUpEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      index++;
+      if (index === answer.length) {
+        clearInterval(intervalId);
+      }
+    }, TYPING_SPEED_MS);
+
+    return () => clearInterval(intervalId);
+  }, [followUpResult?.answerText]);
+
 
   useEffect(() => {
     if (audioDataUri && audioRef.current) {
@@ -127,7 +178,8 @@ export function NarrativeDisplay({
     } else {
       setMicPermissionError(null);
       setTranscribedQuestion("");
-      setFollowUpResult(null);
+      setFollowUpResult(null); // Clear previous follow-up result
+      setDisplayedFollowUpAnswerText(""); // Clear previous typed follow-up
       try {
         if (speechRecognition.lang !== (currentGlobalLanguage || 'en-US')) {
             speechRecognition.lang = currentGlobalLanguage || 'en-US';
@@ -168,10 +220,10 @@ export function NarrativeDisplay({
 
 
     setIsGeneratingFollowUp(true);
-    setFollowUpResult(null);
+    setFollowUpResult(null); // Clear previous result
+    setDisplayedFollowUpAnswerText(""); // Clear previous typed text
 
     const actionInput: FollowUpServerInput = {
-      currentNarrativeText: narrativeText,
       locationDescription: locationDescription, 
       userQuestion: question,
       language: currentGlobalLanguage,
@@ -246,7 +298,10 @@ export function NarrativeDisplay({
         <div>
           <h3 className="font-semibold mb-2">{t.narrativeTextLabel}</h3>
           <ScrollArea className="min-h-[6rem] max-h-80 w-full rounded-md border p-4 bg-background">
-            <p className="text-sm whitespace-pre-wrap break-words">{narrativeText || t.noNarrativeText}</p>
+            <p className="text-sm whitespace-pre-wrap break-words">
+              {displayedNarrativeText || (!narrativeText && t.noNarrativeText) || ""}
+            </p>
+            <div ref={narrativeEndRef} />
           </ScrollArea>
         </div>
         
@@ -318,7 +373,10 @@ export function NarrativeDisplay({
                         </audio>
                       )}
                     <ScrollArea className="min-h-[4rem] max-h-60 w-full rounded-md border bg-background p-3">
-                      <p className="text-sm whitespace-pre-wrap break-words">{followUpResult.answerText}</p>
+                      <p className="text-sm whitespace-pre-wrap break-words">
+                        {displayedFollowUpAnswerText}
+                      </p>
+                      <div ref={followUpEndRef} />
                     </ScrollArea>
                   </div>
                 </div>
