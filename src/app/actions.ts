@@ -44,31 +44,42 @@ export async function generateTravelNarrativeAction(
     }
 
     const { imageDataUri, locationQuery, informationStyle } = validation.data;
-    let identifiedLocationDescription: string;
+    let identifiedLocationDescription: string | null = null;
+    let shouldUseImageFlow = false;
 
-    // Priority 1: User typed a specific location or selected an autocomplete/nearby suggestion
+    // Determine the primary input method and initial location description
     if (locationQuery && locationQuery !== USER_CURRENT_LOCATION_REQUEST_FLAG) {
-        identifiedLocationDescription = locationQuery;
-    } 
-    // Priority 2: User provided an image (and no specific text query was prioritized)
-    else if (imageDataUri) { 
-        const imageDescriptionResult: GenerateImageDescriptionOutput = await generateImageDescription({
-            imageDataUri,
-        });
+      // Priority 1: User typed a specific location or selected an autocomplete/nearby suggestion
+      identifiedLocationDescription = locationQuery;
+    } else if (locationQuery === USER_CURRENT_LOCATION_REQUEST_FLAG && latitude && longitude) {
+      // Priority 2: User requested current location and didn't select a specific nearby place
+      identifiedLocationDescription = `Tell me about interesting places or hidden gems near my current location (Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}).`;
+    } else if (imageDataUri) {
+      // Priority 3: User provided an image (and no specific text query or current location flag was prioritized)
+      shouldUseImageFlow = true;
+    } else {
+      // Fallback / Error case (should ideally be caught by Zod validation)
+      return { error: "Please provide a location input (image, text, or use current location and select a suggestion)." };
+    }
 
-        if (!imageDescriptionResult || !imageDescriptionResult.description) {
-            return { error: "Failed to get description from the provided image. Please try a different image or ensure it's clear." };
-        }
-        identifiedLocationDescription = imageDescriptionResult.description;
-    } 
-    // Priority 3: User requested current location and didn't select a specific nearby place
-    else if (locationQuery === USER_CURRENT_LOCATION_REQUEST_FLAG && latitude && longitude) {
-        identifiedLocationDescription = `Tell me about interesting places or hidden gems near my current location (Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}).`;
-    } 
-    // Fallback / Error case (should be caught by Zod validation mostly)
-    else {
-        // This case should ideally be prevented by the Zod schema's refine method
-        return { error: "Please provide a location input (image, text, or use current location and select a suggestion)." };
+    // If image flow is determined to be the primary input, process the image
+    if (shouldUseImageFlow) {
+      if (!imageDataUri) { // Should be redundant due to above logic, but good for safety
+        return { error: "Image data URI is missing when image input was prioritized."};
+      }
+      const imageDescriptionResult: GenerateImageDescriptionOutput = await generateImageDescription({
+        imageDataUri,
+      });
+
+      if (!imageDescriptionResult || !imageDescriptionResult.description) {
+        return { error: "Failed to get description from the provided image. Please try a different image or ensure it's clear." };
+      }
+      identifiedLocationDescription = imageDescriptionResult.description;
+    }
+    
+    if (!identifiedLocationDescription) {
+        // This should not be reached if logic above is correct and validation passed.
+        return { error: "Could not determine a location description from the provided inputs." };
     }
 
     const effectiveOutputLanguage = language;
@@ -77,7 +88,7 @@ export async function generateTravelNarrativeAction(
     try {
       const headers: Record<string, string> = {
         'Style': informationStyle,
-        'Prompt': identifiedLocationDescription,
+        'Prompt': identifiedLocationDescription, // This will now be correctly prioritized
         'X-User-ID': userId,
         'X-Output-Language': effectiveOutputLanguage,
         'X-Latitude': latitude?.toString() || '',
@@ -125,7 +136,7 @@ export async function generateTravelNarrativeAction(
     return {
       narrativeText: narrativeTextFromWebhook,
       audioDataUri: audioDataUriForResult,
-      locationDescription: identifiedLocationDescription, 
+      locationDescription: identifiedLocationDescription,
       outputLanguage: effectiveOutputLanguage,
       informationStyle,
       userId,
@@ -139,9 +150,7 @@ export async function generateTravelNarrativeAction(
     if (error instanceof Error) {
         errorMessage = error.message;
     }
-    // The error in the screenshot is a Genkit error. If it reaches here, it means
-    // generateImageDescription was called and failed.
-    // We return the specific error message if it's about API keys.
+    // Check if the error is likely from the image description flow
     if (error instanceof Error && (error.message.includes("GEMINI_API_KEY") || error.message.includes("GOOGLE_API_KEY") || error.message.includes("FAILED_PRECONDITION"))) {
         return { error: `AI Service Error: ${error.message}. Please ensure API keys are correctly configured if using image input.` };
     }
@@ -150,7 +159,7 @@ export async function generateTravelNarrativeAction(
 }
 
 export interface FollowUpServerInput {
-  currentNarrativeText: string; 
+  currentNarrativeText: string;
   locationDescription: string;
   userQuestion: string;
   language: string;
@@ -187,7 +196,7 @@ export async function generateFollowUpAnswerAction(
         'X-Longitude': input.longitude?.toString() || '',
         'Follow-Up': "true",
         // 'X-Current-Narrative': input.currentNarrativeText, // Removed as per user request
-        'X-Location-Context': input.locationDescription, 
+        'X-Location-Context': input.locationDescription,
       };
 
       console.log("Calling follow-up webhook with headers:", headers);
@@ -245,7 +254,7 @@ export async function generateFollowUpAnswerAction(
 
 
 export interface PlaceSuggestion {
-  description: string; 
+  description: string;
   place_id: string;
 }
 
@@ -306,28 +315,28 @@ export async function getNearbyTouristSpots(
     const response = await client.placesNearby({
       params: {
         location: { lat: latitude, lng: longitude },
-        radius: 2000, 
-        type: [ 
+        radius: 2000,
+        type: [
             PlaceType2.tourist_attraction,
             PlaceType2.point_of_interest,
             PlaceType2.landmark,
             PlaceType2.museum,
             PlaceType2.park,
             PlaceType2.natural_feature
-        ], 
-        rankby: 'prominence', 
+        ],
+        rankby: 'prominence',
         key: process.env.GOOGLE_MAPS_API_KEY,
       },
       timeout: 5000,
     });
 
     if (response.data.status === "OK") {
-      
+
       const suggestions = response.data.results
-        .filter(place => place.name && place.place_id) 
+        .filter(place => place.name && place.place_id)
         .slice(0, 5)
         .map((place) => ({
-          description: place.name!, 
+          description: place.name!,
           place_id: place.place_id!,
         }));
       return suggestions;
