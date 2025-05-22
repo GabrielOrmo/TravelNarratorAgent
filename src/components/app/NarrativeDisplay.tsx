@@ -24,7 +24,7 @@ interface NarrativeDisplayProps {
   userId: string;
   latitude?: number | null;
   longitude?: number | null;
-  onExploreNewLocation: () => void; // New prop
+  onExploreNewLocation: () => void;
 }
 
 interface ChatMessage {
@@ -36,7 +36,7 @@ interface ChatMessage {
 }
 
 const TYPING_SPEED_MS = 30;
-const SCROLL_THRESHOLD = 50; // Pixels from bottom to trigger auto-scroll
+const SCROLL_THRESHOLD = 50; 
 
 export function NarrativeDisplay({
   narrativeText,
@@ -47,7 +47,7 @@ export function NarrativeDisplay({
   userId,
   latitude,
   longitude,
-  onExploreNewLocation, // Destructure new prop
+  onExploreNewLocation,
 }: NarrativeDisplayProps) {
   const initialAudioRef = useRef<HTMLAudioElement>(null);
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
@@ -57,11 +57,11 @@ export function NarrativeDisplay({
   const t = useTranslations();
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  const [currentDisplayedText, setCurrentDisplayedText] = useState<Record<string, string>>({}); // Stores progressively typed text for each AI message
-  const [activeTypingMessageId, setActiveTypingMessageId] = useState<string | null>(null); // ID of the AI message currently being typed
+  const [currentDisplayedText, setCurrentDisplayedText] = useState<Record<string, string>>({});
+  const [activeTypingMessageId, setActiveTypingMessageId] = useState<string | null>(null);
 
-  const chatEndRef = useRef<HTMLDivElement>(null); // For scrolling to the end of messages
-  const chatScrollAreaRef = useRef<HTMLDivElement>(null); // Ref for the ScrollArea root
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollAreaRef = useRef<HTMLDivElement>(null);
 
 
   const [isRecording, setIsRecording] = useState(false);
@@ -70,7 +70,6 @@ export function NarrativeDisplay({
   const [speechRecognition, setSpeechRecognition] = useState<SpeechRecognition | null>(null);
   const [micPermissionError, setMicPermissionError] = useState<string | null>(null);
 
-  // Typing animation effect for AI messages
   useEffect(() => {
     if (!activeTypingMessageId) return;
 
@@ -80,7 +79,6 @@ export function NarrativeDisplay({
       return;
     }
 
-    // Initialize displayed text for this message if not already
     if (currentDisplayedText[activeTypingMessageId] === undefined) {
       setCurrentDisplayedText(prev => ({ ...prev, [activeTypingMessageId]: "" }));
     }
@@ -88,8 +86,7 @@ export function NarrativeDisplay({
     let index = (currentDisplayedText[activeTypingMessageId] || "").length;
 
     if (index >= messageToAnimate.text.length) {
-      setActiveTypingMessageId(null); // Animation finished
-      // Final scroll to ensure end is visible
+      setActiveTypingMessageId(null);
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 50);
       return;
     }
@@ -101,23 +98,20 @@ export function NarrativeDisplay({
       }));
       index++;
 
-      // Conditional auto-scroll
       const viewport = chatScrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
       if (viewport) {
         const { scrollHeight, scrollTop, clientHeight } = viewport;
-        // Scroll if user is near the bottom or if it's the beginning of the message
         if (scrollHeight - scrollTop - clientHeight <= SCROLL_THRESHOLD || index <= 2) {
           chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
         }
-      } else { // Fallback if viewport not found (less likely but safe)
+      } else {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
       }
 
 
       if (index >= messageToAnimate.text.length) {
         clearInterval(intervalId);
-        setActiveTypingMessageId(null); // Animation finished
-        // Final scroll after animation completes
+        setActiveTypingMessageId(null);
         setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 50);
       }
     }, TYPING_SPEED_MS);
@@ -126,9 +120,8 @@ export function NarrativeDisplay({
   }, [activeTypingMessageId, chatHistory, currentDisplayedText]);
 
 
-  // Effect to initialize or reset chat when main narrative changes
   useEffect(() => {
-    setChatHistory([]); // Clear previous chat history
+    setChatHistory([]);
     setCurrentDisplayedText({});
     setActiveTypingMessageId(null);
 
@@ -138,49 +131,47 @@ export function NarrativeDisplay({
         id: initialMessageId,
         sender: 'ai',
         text: narrativeText,
-        audioDataUri: audioDataUri, // Use the prop for the initial audio
+        audioDataUri: audioDataUri,
         timestamp: new Date(),
       };
       setChatHistory([initialAiMessage]);
       if(narrativeText.trim() !== "") {
-        setActiveTypingMessageId(initialMessageId); // Start typing animation for the initial message
+        setActiveTypingMessageId(initialMessageId);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [narrativeText]); // audioDataUri removed from deps as it's part of the initial message
+  }, [narrativeText]);
 
 
-  // Effect for the initial audio player (separate from chat history audio)
   useEffect(() => {
     if (audioDataUri && initialAudioRef.current) {
       initialAudioRef.current.src = audioDataUri;
-      initialAudioRef.current.load(); // Ensure the new src is loaded
+      initialAudioRef.current.load();
     }
   }, [audioDataUri]);
 
 
-  // Speech Recognition Setup
    useEffect(() => {
     if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
       const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognitionAPI) {
         const recognitionInstance = new SpeechRecognitionAPI();
-        recognitionInstance.continuous = false; // Stop after first phrase
+        recognitionInstance.continuous = false;
         recognitionInstance.interimResults = false;
-        recognitionInstance.lang = currentGlobalLanguage || 'en-US'; // Set based on global language
+        recognitionInstance.lang = currentGlobalLanguage || 'en-US';
 
         recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
           const transcript = event.results[event.results.length - 1][0].transcript.trim();
           setTranscribedQuestion(transcript);
           setIsRecording(false);
-          if (transcript) handleFollowUpSubmit(transcript); // Submit if transcript is not empty
+          if (transcript) handleFollowUpSubmit(transcript);
         };
 
         recognitionInstance.onerror = (event: SpeechRecognitionErrorEvent) => {
           console.error('Speech recognition error:', event.error);
           let errorMsgForToast = event.error;
           if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            setMicPermissionError(t.micDeniedToastDescription); // Specific message for permission issues
+            setMicPermissionError(t.micDeniedToastDescription);
             toast({ variant: "destructive", title: t.micDeniedToastTitle, description: t.micDeniedToastDescription });
           } else {
             toast({ variant: "destructive", title: t.speechErrorToastTitle, description: t.speechErrorToastDescription(errorMsgForToast) });
@@ -196,11 +187,10 @@ export function NarrativeDisplay({
          setMicPermissionError(t.voiceInputNotReadyToastDescription("Speech recognition API not found in browser."));
       }
     } else {
-      // Handle server-side rendering or environments without window.SpeechRecognition
       setMicPermissionError(t.voiceInputNotReadyToastDescription("Speech recognition not available in this environment."));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toast, currentGlobalLanguage, t]); // Add t to dependencies
+  }, [toast, currentGlobalLanguage, t]);
 
   const handleToggleRecording = () => {
     if (!speechRecognition) {
@@ -212,10 +202,9 @@ export function NarrativeDisplay({
       speechRecognition.stop();
       setIsRecording(false);
     } else {
-      setMicPermissionError(null); // Clear previous mic errors
-      setTranscribedQuestion(""); // Clear previous question
+      setMicPermissionError(null);
+      setTranscribedQuestion("");
       try {
-        // Update language if it changed
         if(speechRecognition.lang !== (currentGlobalLanguage || 'en-US')) {
             speechRecognition.lang = currentGlobalLanguage || 'en-US';
         }
@@ -250,21 +239,17 @@ export function NarrativeDisplay({
       timestamp: new Date(),
     };
     setChatHistory(prev => [...prev, userMessage]);
-    setTranscribedQuestion(""); // Clear input after submission
-
-    const initialNarrativeMessage = chatHistory.find(msg => msg.id.startsWith('ai-initial'));
-    const contextNarrative = initialNarrativeMessage ? initialNarrativeMessage.text : narrativeText; // Fallback to prop if somehow not in history
-
+    setTranscribedQuestion("");
 
     const actionInput: FollowUpServerInput = {
-      currentNarrativeText: contextNarrative,
-      locationDescription: locationDescription, // locationDescription is from props
+      currentNarrativeText: narrativeText, // This is the initial narrative text prop
+      locationDescription: locationDescription,
       userQuestion: trimmedQuestion,
-      language: outputLanguage, // outputLanguage is from props (original narrative language)
-      informationStyle: informationStyle, // from props
-      userId: userId, // from props
-      latitude: latitude, // from props
-      longitude: longitude, // from props
+      language: outputLanguage, 
+      informationStyle: informationStyle,
+      userId: userId,
+      latitude: latitude,
+      longitude: longitude,
     };
 
     const result = await generateFollowUpAnswerAction(actionInput);
@@ -283,7 +268,7 @@ export function NarrativeDisplay({
       };
       setChatHistory(prev => [...prev, aiResponseMessage]);
       if (result.answerText.trim() !== "") {
-        setActiveTypingMessageId(aiResponseMessageId); // Start typing this new AI message
+        setActiveTypingMessageId(aiResponseMessageId);
       }
       toast({ title: t.followUpAnswerReadyToastTitle, description: t.followUpAnswerReadyToastDescription });
     }
@@ -302,7 +287,6 @@ export function NarrativeDisplay({
         </CardDescription>
       </CardHeader>
 
-      {/* Static Info: Location and Initial Audio Player */}
       <CardContent className="space-y-2 pb-2">
         {locationDescription && (
           <div className="pb-1">
@@ -313,7 +297,6 @@ export function NarrativeDisplay({
             <p className="text-xs text-foreground pl-6 break-words">{locationDescription}</p>
           </div>
         )}
-        {/* Initial Audio: Only show if audioDataUri (for initial narrative) is present */}
         {chatHistory.some(msg => msg.id.startsWith('ai-initial') && msg.audioDataUri) && (
           <>
             <Separator />
@@ -328,7 +311,6 @@ export function NarrativeDisplay({
             </div>
           </>
         )}
-         {/* Show if main narrative text exists but no audio for it */}
         {!chatHistory.some(msg => msg.id.startsWith('ai-initial') && msg.audioDataUri) && narrativeText && (
              <>
                 <Separator />
@@ -343,10 +325,9 @@ export function NarrativeDisplay({
 
       <Separator />
 
-      {/* Chat History Scroll Area */}
       <ScrollArea 
         ref={chatScrollAreaRef} 
-        className="flex-grow w-full p-4 bg-background" /* Removed min-h here to rely on flex-grow */
+        className="flex-grow w-full p-4 bg-background min-h-0" // Added min-h-0
       >
         <div className="space-y-4">
           {chatHistory.map((message) => (
@@ -363,29 +344,27 @@ export function NarrativeDisplay({
               >
                 <p className="text-sm whitespace-pre-wrap break-words">
                   {activeTypingMessageId === message.id
-                    ? (currentDisplayedText[message.id] || "") + "▎" // Typing indicator
-                    : message.text || (message.sender === 'ai' ? t.noNarrativeText : "") // Fallback for empty AI text
+                    ? (currentDisplayedText[message.id] || "") + "▎" 
+                    : message.text || (message.sender === 'ai' ? t.noNarrativeText : "") 
                   }
                 </p>
               </div>
-              {/* Audio player for AI follow-up messages, shown after typing is complete */}
               {message.sender === 'ai' && message.audioDataUri && activeTypingMessageId !== message.id && message.text.trim() !== "" && (
                 <audio
-                  ref={(el) => { audioRefs.current[message.id] = el; }} // Assign ref for this specific audio player
+                  ref={(el) => { audioRefs.current[message.id] = el; }}
                   controls
                   src={message.audioDataUri}
-                  className="w-full max-w-[250px] mt-2 ml-0 sm:ml-2 self-start h-8" // Smaller, left-aligned
+                  className="w-full max-w-[250px] mt-2 ml-0 sm:ml-2 self-start h-8"
                 >
                   {t.audioNotSupported}
                 </audio>
               )}
               <p className={`text-xs mt-1 px-1 ${message.sender === 'user' ? 'text-muted-foreground/80 self-end' : 'text-muted-foreground/80 self-start'}`}>
                 {message.sender === 'user' ? <User className="inline h-3 w-3 mr-1" /> : <BotMessageSquare className="inline h-3 w-3 mr-1 text-primary" />}
-                {/* Consider adding message.timestamp here, formatted */}
               </p>
             </div>
           ))}
-          <div ref={chatEndRef} /> {/* Invisible div to scroll to */}
+          <div ref={chatEndRef} />
         </div>
         {!chatHistory.length && (
             <div className="text-center text-muted-foreground py-8">
@@ -395,7 +374,6 @@ export function NarrativeDisplay({
         )}
       </ScrollArea>
 
-      {/* Follow-up Input Area - only show if there's a chat history */}
       {chatHistory.length > 0 && (
         <>
           <Separator />
@@ -463,3 +441,4 @@ export function NarrativeDisplay({
     </Card>
   );
 }
+
