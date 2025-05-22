@@ -7,7 +7,8 @@ import { Header } from "@/components/app/Header";
 import { NarratorForm } from "@/components/app/NarratorForm";
 import { NarrativeDisplay } from "@/components/app/NarrativeDisplay";
 import { LoadingSpinner } from "@/components/app/LoadingSpinner";
-import { PlaceholderCard } from "@/components/app/PlaceholderCard";
+// PlaceholderCard is no longer used here for the initial view.
+// import { PlaceholderCard } from "@/components/app/PlaceholderCard"; 
 import { useToast } from "@/hooks/use-toast";
 import type { TravelNarrativeResult } from "./actions";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -19,7 +20,7 @@ export default function HomePage() {
   const [narrativeResult, setNarrativeResult] = useState<TravelNarrativeResult | null>(null);
   const [currentYear, setCurrentYear] = useState<number | null>(null);
   const { toast } = useToast();
-  const { language } = useLanguage();
+  const { language } = useLanguage(); // currentLanguage is passed to NarratorForm
   const t = useTranslations();
 
   useEffect(() => {
@@ -96,7 +97,7 @@ export default function HomePage() {
                   onGenerationComplete={handleGenerationComplete}
                   onGenerationError={handleGenerationError}
                   isGenerating={isGenerating}
-                  currentLanguage={language}
+                  currentLanguage={language} // Pass currentLanguage from context
                 />
               </div>
             )}
@@ -109,10 +110,11 @@ export default function HomePage() {
             {uiMode === 'chat' && <div className="hidden lg:block w-full max-w-lg mx-auto lg:max-w-none lg:mx-0"> {/* Placeholder for left col in chat mode on large screens */} </div>}
 
 
-            {/* Right Column: Placeholder/Loading or NarrativeDisplay */}
+            {/* Right Column: LoadingSpinner, NarrativeDisplay, or empty */}
             <div className="w-full max-w-lg mx-auto lg:max-w-none lg:mx-0">
               {uiMode === 'form' && isGenerating && <LoadingSpinner />}
-              {uiMode === 'form' && !isGenerating && <PlaceholderCard />}
+              {/* PlaceholderCard is removed from here to keep the right side empty initially in form mode */}
+              {/* {uiMode === 'form' && !isGenerating && <PlaceholderCard />} */} 
               {uiMode === 'chat' && narrativeResult && (
                 <NarrativeDisplay
                   narrativeText={narrativeResult.narrativeText}
