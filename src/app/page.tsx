@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { Header } from "@/components/app/Header";
 import { NarratorForm } from "@/components/app/NarratorForm";
@@ -22,14 +22,24 @@ export default function HomePage() {
   const { toast } = useToast();
   const { language } = useLanguage(); // currentLanguage is passed to NarratorForm
   const t = useTranslations();
+  const chatDisplayContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setCurrentYear(new Date().getFullYear());
   }, []);
 
+  useEffect(() => {
+    if (uiMode === 'chat' && narrativeResult && chatDisplayContainerRef.current) {
+      // Using a timeout to ensure the element is rendered and layout shifts (if any) are complete
+      const timer = setTimeout(() => {
+        chatDisplayContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100); // 100ms delay, adjust if needed
+      return () => clearTimeout(timer);
+    }
+  }, [uiMode, narrativeResult]);
+
   const handleGenerationStart = () => {
     setIsGenerating(true);
-    // No need to set narrativeResult to null here, uiMode handles visibility
   };
 
   const handleGenerationComplete = (data: TravelNarrativeResult) => {
@@ -44,7 +54,6 @@ export default function HomePage() {
 
   const handleGenerationError = (message: string) => {
     setIsGenerating(false);
-    // Stay in 'form' mode to allow user to retry or change input
     toast({
       variant: "destructive",
       title: t.toastGenerationFailedTitle,
@@ -54,7 +63,7 @@ export default function HomePage() {
 
   const handleExploreNewLocation = () => {
     setUiMode('form');
-    setNarrativeResult(null); // Clear previous result to reset chat
+    setNarrativeResult(null); 
   };
 
   return (
@@ -102,20 +111,13 @@ export default function HomePage() {
                 />
               </div>
             )}
-             {/* If in chat mode, the left column could be empty or show something else. 
-                 For a typical 2-column layout, the chat might take full width on smaller screens or stay in the right column.
-                 Here, if uiMode is 'chat', the left column will effectively be empty if lg:grid-cols-2 is active.
-                 If you want chat to span both columns, you'd adjust the parent grid or this conditional rendering.
-                 For simplicity, we'll keep the 2-column structure, and the form just disappears.
-             */}
-            {uiMode === 'chat' && <div className="hidden lg:block w-full max-w-lg mx-auto lg:max-w-none lg:mx-0"> {/* Placeholder for left col in chat mode on large screens */} </div>}
+            {uiMode === 'chat' && <div className="hidden lg:block w-full max-w-lg mx-auto lg:max-w-none lg:mx-0" aria-hidden="true"> {/* Placeholder for left col in chat mode on large screens */} </div>}
 
 
-            {/* Right Column: LoadingSpinner, NarrativeDisplay, or empty */}
-            <div className="w-full max-w-lg mx-auto lg:max-w-none lg:mx-0">
+            {/* Right Column: LoadingSpinner, NarrativeDisplay, or initially empty in form mode */}
+            <div ref={chatDisplayContainerRef} className="w-full max-w-lg mx-auto lg:max-w-none lg:mx-0">
               {uiMode === 'form' && isGenerating && <LoadingSpinner />}
-              {/* PlaceholderCard is removed from here to keep the right side empty initially in form mode */}
-              {/* {uiMode === 'form' && !isGenerating && <PlaceholderCard />} */} 
+              {/* No PlaceholderCard here to keep it empty initially in form mode */}
               {uiMode === 'chat' && narrativeResult && (
                 <NarrativeDisplay
                   narrativeText={narrativeResult.narrativeText}
