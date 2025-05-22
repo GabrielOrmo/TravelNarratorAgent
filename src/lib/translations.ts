@@ -28,7 +28,7 @@ type TranslationKeys = {
   scanWithCameraButton: string;
   uploadImageButton: string;
   cancelCameraButton: string;
-  fetchingLocationButton: string; // Kept for potential future use, though button text might change
+  fetchingLocationButton: string; 
   geolocationNotSupported: string;
   geolocationPermissionDenied: string;
   geolocationPositionUnavailable: string;
@@ -62,10 +62,14 @@ type TranslationKeys = {
   nearbyPlacesNoResultsDescription: string;
   // NarrativeDisplay
   narrativeDisplayTitle: string;
-  narrativeDisplayDescription: string;
+  narrativeDisplayDescription: string; // This will be dynamic now
+  chattingAboutLocation: (location: string) => string;
   identifiedLocationLabel: string;
   audioNarrationLabel: string;
   initialNarrativeLabel: string;
+  playInitialNarrativeTooltip: string;
+  pauseInitialNarrativeTooltip: string;
+  initialAudioNotAvailableTooltip: string;
   startConversationPlaceholder: string;
   audioNotSupported: string;
   audioUnavailableTitle: string;
@@ -79,7 +83,7 @@ type TranslationKeys = {
   stopRecordingButtonAria: string;
   startRecordingButtonAria: string;
   submitQuestionButton: string;
-  gettingAnswerButton: string; // Kept, though text might change
+  gettingAnswerButton: string; 
   aiThinking: string;
   yourQuestionLabel: string;
   aiAnswerLabel: string;
@@ -108,7 +112,7 @@ type TranslationKeys = {
 const translationsData: Record<Locale, TranslationKeys> = {
   en: {
     appSubtitle: 'Your personal AI-powered axolotl travel tour guide.',
-    heroImageAlt: 'A travel-themed banner image.',
+    heroImageAlt: 'A travel-themed banner with an axolotl.',
     footerCopyright: 'Aijolot Travel Guide. AI-powered by Genkit & External Agent.',
     toastNarrativeGeneratedTitle: 'Narrative Ready!',
     toastNarrativeGeneratedDescription: (location) => `Your agent response for ${location || 'the location'} is ready.`,
@@ -160,10 +164,14 @@ const translationsData: Record<Locale, TranslationKeys> = {
     nearbyPlacesNoResultsTitle: "No Nearby Spots Found",
     nearbyPlacesNoResultsDescription: "Couldn't find specific tourist spots nearby. Try a broader search or describe a place.",
     narrativeDisplayTitle: 'Aijolot Chat',
-    narrativeDisplayDescription: 'Interact with your AI travel guide.',
-    identifiedLocationLabel: 'Location Context:',
+    narrativeDisplayDescription: 'Interact with your AI travel guide.', // Will be replaced by dynamic one
+    chattingAboutLocation: (location) => `Chatting about: ${location}`,
+    identifiedLocationLabel: 'Context',
     audioNarrationLabel: 'Audio Narration',
     initialNarrativeLabel: 'Initial Narrative',
+    playInitialNarrativeTooltip: 'Play initial narrative',
+    pauseInitialNarrativeTooltip: 'Pause initial narrative',
+    initialAudioNotAvailableTooltip: 'Initial audio not available',
     startConversationPlaceholder: 'Enter details above to start your AI-guided tour!',
     audioNotSupported: 'Your browser does not support the audio element.',
     audioUnavailableTitle: 'Audio Not Available',
@@ -202,7 +210,7 @@ const translationsData: Record<Locale, TranslationKeys> = {
   },
   es: {
     appSubtitle: 'Tu guía turístico personal axolotl impulsado por IA.',
-    heroImageAlt: 'Una imagen de banner con temática de viajes.',
+    heroImageAlt: 'Un banner de temática de viajes con un axolotl.',
     footerCopyright: 'Aijolot Travel Guide. IA impulsada por Genkit y Agente Externo.',
     toastNarrativeGeneratedTitle: '¡Respuesta del Agente Lista!',
     toastNarrativeGeneratedDescription: (location) => `La respuesta de tu agente para ${location || 'la ubicación'} está lista.`,
@@ -253,11 +261,15 @@ const translationsData: Record<Locale, TranslationKeys> = {
     nearbyPlacesErrorTitle: "Error en Lugares Cercanos",
     nearbyPlacesNoResultsTitle: "No se Encontraron Lugares Cercanos",
     nearbyPlacesNoResultsDescription: "No se pudieron encontrar lugares turísticos específicos cerca. Intenta una búsqueda más amplia o describe un lugar.",
-    narrativeDisplayTitle: 'Chat Aijolot',
+    narrativeDisplayTitle: 'Aijolot Chat',
     narrativeDisplayDescription: 'Interactúa con tu guía turístico IA.',
-    identifiedLocationLabel: 'Contexto de Ubicación:',
+    chattingAboutLocation: (location) => `Charlando sobre: ${location}`,
+    identifiedLocationLabel: 'Contexto',
     audioNarrationLabel: 'Narración en Audio',
     initialNarrativeLabel: 'Narrativa Inicial',
+    playInitialNarrativeTooltip: 'Reproducir narrativa inicial',
+    pauseInitialNarrativeTooltip: 'Pausar narrativa inicial',
+    initialAudioNotAvailableTooltip: 'Audio inicial no disponible',
     startConversationPlaceholder: '¡Ingresa detalles arriba para comenzar tu recorrido guiado por IA!',
     audioNotSupported: 'Tu navegador no soporta el elemento de audio.',
     audioUnavailableTitle: 'Audio No Disponible',
@@ -296,7 +308,7 @@ const translationsData: Record<Locale, TranslationKeys> = {
   },
   fr: {
     appSubtitle: 'Votre guide touristique personnel axolotl alimenté par IA.',
-    heroImageAlt: 'Une image de bannière sur le thème du voyage.',
+    heroImageAlt: 'Un banner sur le thème du voyage avec un axolotl.',
     footerCopyright: 'Aijolot Travel Guide. IA alimentée par Genkit & Agent Externe.',
     toastNarrativeGeneratedTitle: "Réponse de l'Agent Prête !",
     toastNarrativeGeneratedDescription: (location) => `La réponse de votre agent pour ${location || "l'endroit"} est prête.`,
@@ -347,11 +359,15 @@ const translationsData: Record<Locale, TranslationKeys> = {
     nearbyPlacesErrorTitle: "Erreur Lieux Proches",
     nearbyPlacesNoResultsTitle: "Aucun Lieu Proche Trouvé",
     nearbyPlacesNoResultsDescription: "Impossible de trouver des lieux touristiques spécifiques à proximité. Essayez une recherche plus large ou décrivez un lieu.",
-    narrativeDisplayTitle: 'Chat Aijolot',
+    narrativeDisplayTitle: 'Aijolot Chat',
     narrativeDisplayDescription: "Interagissez avec votre guide touristique IA.",
-    identifiedLocationLabel: 'Contexte du Lieu:',
+    chattingAboutLocation: (location) => `Discussion à propos de : ${location}`,
+    identifiedLocationLabel: 'Contexte',
     audioNarrationLabel: 'Narration Audio',
     initialNarrativeLabel: 'Narration Initiale',
+    playInitialNarrativeTooltip: 'Lire la narration initiale',
+    pauseInitialNarrativeTooltip: 'Mettre en pause la narration initiale',
+    initialAudioNotAvailableTooltip: 'Audio initial non disponible',
     startConversationPlaceholder: 'Entrez les détails ci-dessus pour commencer votre visite guidée par IA !',
     audioNotSupported: "Votre navigateur ne supporte pas l'élément audio.",
     audioUnavailableTitle: 'Audio Non Disponible',

@@ -6,7 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { BotMessageSquare, User, Volume2, MapPin, Mic, CornerDownLeft, AlertTriangle, Info, Send, Compass } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { BotMessageSquare, User, Volume2, MapPin, Mic, CornerDownLeft, AlertTriangle, Info, Send, Compass, Play, Pause } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { generateFollowUpAnswerAction, type FollowUpResult, type FollowUpServerInput } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -40,7 +41,7 @@ const SCROLL_THRESHOLD = 50;
 
 export function NarrativeDisplay({
   narrativeText,
-  audioDataUri,
+  audioDataUri, // This is for the initial narrative
   locationDescription,
   outputLanguage,
   informationStyle,
@@ -59,6 +60,7 @@ export function NarrativeDisplay({
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [currentDisplayedText, setCurrentDisplayedText] = useState<Record<string, string>>({});
   const [activeTypingMessageId, setActiveTypingMessageId] = useState<string | null>(null);
+  const [isPlayingInitialAudio, setIsPlayingInitialAudio] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatScrollAreaRef = useRef<HTMLDivElement>(null);
@@ -124,6 +126,7 @@ export function NarrativeDisplay({
     setChatHistory([]);
     setCurrentDisplayedText({});
     setActiveTypingMessageId(null);
+    setIsPlayingInitialAudio(false); // Reset playing state
 
     if (narrativeText) {
       const initialMessageId = `ai-initial-${Date.now()}`;
@@ -131,7 +134,7 @@ export function NarrativeDisplay({
         id: initialMessageId,
         sender: 'ai',
         text: narrativeText,
-        audioDataUri: audioDataUri,
+        audioDataUri: audioDataUri, // Use the prop here for the first message
         timestamp: new Date(),
       };
       setChatHistory([initialAiMessage]);
@@ -140,14 +143,25 @@ export function NarrativeDisplay({
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [narrativeText]);
+  }, [narrativeText]); // Rerun if initial narrativeText changes
 
 
   useEffect(() => {
+    // Setup for the initial audio player
     if (audioDataUri && initialAudioRef.current) {
       initialAudioRef.current.src = audioDataUri;
       initialAudioRef.current.load();
+      initialAudioRef.current.onended = () => setIsPlayingInitialAudio(false);
+      initialAudioRef.current.onpause = () => setIsPlayingInitialAudio(false);
+      initialAudioRef.current.onplay = () => setIsPlayingInitialAudio(true);
     }
+     return () => {
+      if (initialAudioRef.current) {
+        initialAudioRef.current.onended = null;
+        initialAudioRef.current.onpause = null;
+        initialAudioRef.current.onplay = null;
+      }
+    };
   }, [audioDataUri]);
 
 
@@ -274,60 +288,77 @@ export function NarrativeDisplay({
     }
   };
 
+  const handleToggleInitialAudio = () => {
+    if (initialAudioRef.current) {
+      if (isPlayingInitialAudio) {
+        initialAudioRef.current.pause();
+      } else {
+        initialAudioRef.current.play().catch(err => console.error("Error playing audio:", err));
+      }
+      setIsPlayingInitialAudio(!isPlayingInitialAudio);
+    }
+  };
+
+  // Hidden audio element for the initial narrative, controlled by the speaker button
+  const initialAudioElement = audioDataUri ? (
+    <audio ref={initialAudioRef} src={audioDataUri} className="hidden" preload="metadata" />
+  ) : null;
+
 
   return (
     <Card className="shadow-lg w-full flex flex-col max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <BotMessageSquare className="h-6 w-6 text-primary" />
-          <span>{t.narrativeDisplayTitle}</span>
-        </CardTitle>
-        <CardDescription>
-          {t.narrativeDisplayDescription}
-        </CardDescription>
+      <CardHeader className="py-3">
+        <div className="flex items-center gap-2">
+          <BotMessageSquare className="h-6 w-6 text-primary shrink-0" />
+          <div>
+            <CardTitle className="text-xl">
+              {t.narrativeDisplayTitle}
+            </CardTitle>
+            {locationDescription && (
+              <CardDescription className="text-xs">
+                {t.chattingAboutLocation(locationDescription)}
+              </CardDescription>
+            )}
+          </div>
+        </div>
       </CardHeader>
 
-      <CardContent className="space-y-2 pb-2">
-        {locationDescription && (
-          <div className="pb-1">
-            <h3 className="font-semibold mb-0.5 flex items-center gap-2 text-sm">
-              <MapPin className="h-4 w-4 text-accent" />
-              {t.identifiedLocationLabel}
-            </h3>
-            <p className="text-xs text-foreground pl-6 break-words">{locationDescription}</p>
+      <CardContent className="space-y-2 pb-2 pt-0">
+         {/* Removed original Location Context and Audio Section */}
+         {/* New minimal Location Context & Initial Audio Control Button */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 pb-1 border-b border-t">
+          <div className="flex items-center gap-1 overflow-hidden">
+            <MapPin className="h-3.5 w-3.5 text-accent shrink-0" />
+            <span className="truncate" title={locationDescription}>{t.identifiedLocationLabel}: {locationDescription}</span>
           </div>
-        )}
-        {chatHistory.some(msg => msg.id.startsWith('ai-initial') && msg.audioDataUri) && (
-          <>
-            <Separator />
-            <div>
-              <h3 className="font-semibold mb-1 flex items-center gap-2 text-sm pt-1">
-                <Volume2 className="h-4 w-4 text-secondary" />
-                {t.audioNarrationLabel} ({t.initialNarrativeLabel})
-              </h3>
-              <audio ref={initialAudioRef} controls src={chatHistory.find(msg => msg.id.startsWith('ai-initial'))?.audioDataUri} className="w-full">
-                {t.audioNotSupported}
-              </audio>
-            </div>
-          </>
-        )}
-        {!chatHistory.some(msg => msg.id.startsWith('ai-initial') && msg.audioDataUri) && narrativeText && (
-             <>
-                <Separator />
-                <Alert variant="default" className="bg-muted/50 mt-1 text-xs py-2">
-                    <Info className="h-3 w-3" />
-                    <AlertTitle className="text-xs">{t.audioUnavailableTitle}</AlertTitle>
-                    <AlertDescription className="text-xs">{t.audioUnavailableDescription}</AlertDescription>
-                </Alert>
-            </>
-        )}
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleToggleInitialAudio}
+                  disabled={!audioDataUri || activeTypingMessageId?.startsWith('ai-initial')}
+                  className="h-7 w-7 shrink-0"
+                  aria-label={isPlayingInitialAudio ? t.pauseInitialNarrativeTooltip : t.playInitialNarrativeTooltip}
+                >
+                  {isPlayingInitialAudio ? <Pause className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{!audioDataUri ? t.initialAudioNotAvailableTooltip : isPlayingInitialAudio ? t.pauseInitialNarrativeTooltip : t.playInitialNarrativeTooltip}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        {initialAudioElement}
       </CardContent>
 
-      <Separator />
+      {/* Removed Separator here as the border-b above serves a similar purpose */}
 
       <ScrollArea 
         ref={chatScrollAreaRef} 
-        className="flex-grow w-full p-4 bg-background min-h-0" // Added min-h-0
+        className="flex-grow w-full p-4 bg-background min-h-0" 
       >
         <div className="space-y-4">
           {chatHistory.map((message) => (
@@ -349,7 +380,7 @@ export function NarrativeDisplay({
                   }
                 </p>
               </div>
-              {message.sender === 'ai' && message.audioDataUri && activeTypingMessageId !== message.id && message.text.trim() !== "" && (
+              {message.sender === 'ai' && message.audioDataUri && activeTypingMessageId !== message.id && message.text.trim() !== "" && !message.id.startsWith('ai-initial') && ( // Don't show player for initial narrative here
                 <audio
                   ref={(el) => { audioRefs.current[message.id] = el; }}
                   controls
@@ -441,4 +472,3 @@ export function NarrativeDisplay({
     </Card>
   );
 }
-
