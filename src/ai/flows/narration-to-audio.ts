@@ -10,15 +10,16 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import {TextToSpeechClient, type protos} from '@google-cloud/text-to-speech';
 
 const NarrationToAudioInputSchema = z.object({
   narratedText: z.string().describe('The text to be converted to speech.'),
-  voice: z.string().describe('The desired voice characteristics for the audio.'),
+  voice: z.string().describe('The language code for the audio (e.g., "en", "es", "fr"). This will be used to select an appropriate voice.'),
 });
 export type NarrationToAudioInput = z.infer<typeof NarrationToAudioInputSchema>;
 
 const NarrationToAudioOutputSchema = z.object({
-  audioDataUri: z.string().describe('The audio file as a data URI.'),
+  audioDataUri: z.string().describe('The audio file as a data URI (e.g., data:audio/mp3;base64,...). Empty if generation failed.'),
 });
 export type NarrationToAudioOutput = z.infer<typeof NarrationToAudioOutputSchema>;
 
@@ -26,12 +27,30 @@ export async function narrationToAudio(input: NarrationToAudioInput): Promise<Na
   return narrationToAudioFlow(input);
 }
 
-const narrationToAudioPrompt = ai.definePrompt({
-  name: 'narrationToAudioPrompt',
-  input: {schema: NarrationToAudioInputSchema},
-  output: {schema: NarrationToAudioOutputSchema},
-  prompt: `Convert the following text to speech with the specified voice characteristics.\n\nText: {{{narratedText}}}\nVoice Characteristics: {{{voice}}}`,
-});
+// Helper function to select a voice name based on language code
+function getVoiceSelection(languageCode: string): protos.google.cloud.texttospeech.v1.IVoiceSelectionParams {
+  // Default to NEUTRAL gender, letting Google pick a standard voice for the language.
+  // For more specific voices, you can expand this mapping.
+  // Examples:
+  // 'en': { languageCode: 'en-US', name: 'en-US-Standard-C' }, // Female
+  // 'es': { languageCode: 'es-ES', name: 'es-ES-Standard-A' }, // Female
+  // 'fr': { languageCode: 'fr-FR', name: 'fr-FR-Standard-A' }, // Female
+  
+  const baseLanguage = languageCode.split('-')[0].toLowerCase();
+
+  switch (baseLanguage) {
+    case 'en':
+      return { languageCode: 'en-US', name: 'en-US-Standard-C' }; // Standard Female
+    case 'es':
+      return { languageCode: 'es-ES', name: 'es-ES-Standard-A' }; // Standard Female
+    case 'fr':
+      return { languageCode: 'fr-FR', name: 'fr-FR-Standard-A' }; // Standard Female
+    default:
+      // Fallback for other languages - may or may not have a good default 'Standard' voice.
+      // Using languageCode directly and a neutral gender is a safer bet for broader language support.
+      return { languageCode: languageCode, ssmlGender: 'FEMALE' as protos.google.cloud.texttospeech.v1.SsmlVoiceGender };
+  }
+}
 
 const narrationToAudioFlow = ai.defineFlow(
   {
@@ -39,17 +58,37 @@ const narrationToAudioFlow = ai.defineFlow(
     inputSchema: NarrationToAudioInputSchema,
     outputSchema: NarrationToAudioOutputSchema,
   },
-  async input => {
-    // In a real implementation, this would call Google Cloud Text-to-Speech
-    // or a similar service to generate the audio.
-    // For this example, we'll just return a dummy data URI.
-    const dummyAudioDataUri = 'data:audio/mpeg;base64,T2dnUw==';
+  async (input: NarrationToAudioInput): Promise<NarrationToAudioOutput> => {
+    if (!input.narratedText || input.narratedText.trim() === "") {
+        console.warn("Narration text is empty. Skipping TTS generation.");
+        return { audioDataUri: "" };
+    }
 
-    // Although the prompt is defined, it is not called since the
-    // dummyAudioDataUri is used for now
-    // const {output} = await narrationToAudioPrompt(input);
-    // return output!;
+    try {
+      const client = new TextToSpeechClient();
 
-    return {audioDataUri: dummyAudioDataUri};
+      const voiceSelection = getVoiceSelection(input.voice);
+
+      const request: protos.google.cloud.texttospeech.v1.ISynthesizeSpeechRequest = {
+        input: { text: input.narratedText },
+        voice: voiceSelection,
+        audioConfig: { audioEncoding: 'MP3' },
+      };
+
+      const [response] = await client.synthesizeSpeech(request);
+
+      if (response.audioContent) {
+        const audioBase64 = Buffer.from(response.audioContent as Uint8Array).toString('base64');
+        const audioDataUri = `data:audio/mp3;base64,${audioBase64}`;
+        return { audioDataUri };
+      } else {
+        console.error('Google Text-to-Speech API did not return audio content.');
+        return { audioDataUri: '' };
+      }
+    } catch (error) {
+      console.error('Error calling Google Text-to-Speech API:', error);
+      // It's important to return the defined output schema, even in case of error.
+      return { audioDataUri: '' }; 
+    }
   }
 );

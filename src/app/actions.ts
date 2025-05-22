@@ -56,11 +56,12 @@ export async function generateTravelNarrativeAction(
     } else if (locationQuery) {
       identifiedLocationDescription = locationQuery;
     } else {
+      // This case should ideally be caught by schema validation refine,
+      // but as a safeguard:
       return { error: "Please provide either a location search term or an image." };
     }
 
     const effectiveOutputLanguage = language; 
-
 
     let narrativeTextFromWebhook: string;
     try {
@@ -93,9 +94,24 @@ export async function generateTravelNarrativeAction(
       return { error: `Error contacting the narrative agent: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}` };
     }
 
+    let audioDataUriForResult = "";
+    if (narrativeTextFromWebhook) {
+      const audioResult: NarrationToAudioOutput = await narrationToAudio({
+        narratedText: narrativeTextFromWebhook,
+        voice: effectiveOutputLanguage, 
+      });
+      if (audioResult.audioDataUri) {
+        audioDataUriForResult = audioResult.audioDataUri;
+      } else {
+        console.warn("Failed to generate audio for the main narrative. Proceeding without audio.");
+        // Optionally, you could return a specific user-facing message here or in the component
+      }
+    }
+
+
     return {
       narrativeText: narrativeTextFromWebhook,
-      audioDataUri: "", 
+      audioDataUri: audioDataUriForResult, 
       locationDescription: identifiedLocationDescription,
       outputLanguage: effectiveOutputLanguage,
       informationStyle, 
@@ -118,7 +134,7 @@ export interface FollowUpServerInput {
   currentNarrativeText: string;
   locationDescription: string;
   userQuestion: string;
-  language: string;
+  language: string; // This is the target output language
   informationStyle: string; 
   userId: string; 
   latitude?: number | null; 
@@ -147,7 +163,7 @@ export async function generateFollowUpAnswerAction(
         'Style': input.informationStyle,
         'Prompt': input.userQuestion, 
         'X-User-ID': input.userId, 
-        'X-Output-Language': input.language,
+        'X-Output-Language': input.language, // Use the passed language
         'X-Latitude': input.latitude?.toString() || '',
         'X-Longitude': input.longitude?.toString() || '',
         'Follow-Up': "true", 
@@ -174,18 +190,24 @@ export async function generateFollowUpAnswerAction(
       return { error: `Error contacting the agent for follow-up: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}` };
     }
 
-    const audioResult: NarrationToAudioOutput = await narrationToAudio({
-      narratedText: answerTextFromWebhook,
-      voice: "default", 
-    });
+    let audioDataUriForResult = "";
+    if(answerTextFromWebhook) {
+      const audioResult: NarrationToAudioOutput = await narrationToAudio({
+        narratedText: answerTextFromWebhook,
+        voice: input.language, // Use the passed language for TTS
+      });
 
-    if (!audioResult.audioDataUri) {
-      return { error: "Failed to generate audio for the follow-up answer." };
+      if (audioResult.audioDataUri) {
+        audioDataUriForResult = audioResult.audioDataUri;
+      } else {
+         console.warn("Failed to generate audio for the follow-up answer. Proceeding without audio for follow-up.");
+      }
     }
+
 
     return {
       answerText: answerTextFromWebhook,
-      answerAudioDataUri: audioResult.audioDataUri,
+      answerAudioDataUri: audioDataUriForResult,
     };
   } catch (error) {
     console.error("Error in generateFollowUpAnswerAction:", error);
@@ -245,3 +267,4 @@ export async function getPlaceAutocompleteSuggestions(
     return { error: "Could not fetch place suggestions." };
   }
 }
+
