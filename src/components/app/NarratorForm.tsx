@@ -3,9 +3,9 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Wand2, Castle, HelpCircle, Newspaper, Upload, Camera, Image as ImageIcon, AlertTriangle, Search, MapPin, LocateFixed, Loader2, XCircle } from "lucide-react";
+import { Wand2, Castle, HelpCircle, Newspaper, Upload, Camera, Image as ImageIcon, AlertTriangle, Search, MapPin, LocateFixed, Loader2, XCircle, Compass, Video, FileImage } from "lucide-react";
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import NextImage from "next/image"; 
+import NextImage from "next/image";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -30,9 +30,10 @@ import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
 import { useLanguage, type Locale } from "@/contexts/LanguageContext";
 import { useTranslations } from "@/lib/translations";
 import { cn } from "@/lib/utils";
-
+import { Separator } from "@/components/ui/separator";
 
 const USER_ID_STORAGE_KEY = 'aijolot-user-id';
+const USER_CURRENT_LOCATION_REQUEST_FLAG = "[USER_CURRENT_LOCATION_REQUEST]";
 
 interface NarratorFormProps {
   onGenerationStart: () => void;
@@ -52,7 +53,7 @@ export function NarratorForm({
   const t = useTranslations();
   const [isMounted, setIsMounted] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  
+
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [showCameraView, setShowCameraView] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -100,18 +101,20 @@ export function NarratorForm({
     if (videoRef.current?.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null; 
+      videoRef.current.srcObject = null;
     }
-    setHasCameraPermission(null); 
+    setHasCameraPermission(null);
   }, []);
 
-  const clearImage = useCallback(() => {
+  const clearImageAndCamera = useCallback(() => {
     setImagePreview(null);
     form.setValue("imageDataUri", undefined, { shouldValidate: true });
     if (fileInputRef.current) fileInputRef.current.value = "";
-    stopCameraTracks();
-    setShowCameraView(false);
-  }, [form, stopCameraTracks]);
+    if (showCameraView) {
+      stopCameraTracks();
+      setShowCameraView(false);
+    }
+  }, [form, stopCameraTracks, showCameraView]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -119,12 +122,14 @@ export function NarratorForm({
       const reader = new FileReader();
       reader.onloadend = () => {
         const dataUri = reader.result as string;
-        form.setValue("locationQuery", undefined, { shouldValidate: true }); 
+        form.setValue("locationQuery", undefined, { shouldValidate: true });
         form.setValue("imageDataUri", dataUri, { shouldValidate: true });
         setImagePreview(dataUri);
-        setShowCameraView(false);
-        setShowSuggestions(false);
-        stopCameraTracks();
+        setShowCameraView(false); // Ensure camera view is closed
+        stopCameraTracks(); // Ensure camera tracks are stopped
+        setLocationError(null); // Clear location error if any
+        setLatitude(null);      // Clear coordinates
+        setLongitude(null);
       };
       reader.readAsDataURL(file);
     }
@@ -141,7 +146,7 @@ export function NarratorForm({
       } catch (error) {
         console.error('Error accessing camera:', error);
         setHasCameraPermission(false);
-        setShowCameraView(false); 
+        setShowCameraView(false);
         toast({
           variant: 'destructive',
           title: t.cameraAccessProblemTitle,
@@ -150,7 +155,7 @@ export function NarratorForm({
       }
     } else {
       setHasCameraPermission(false);
-      setShowCameraView(false); 
+      setShowCameraView(false);
       toast({
         variant: 'destructive',
         title: t.cameraAccessProblemTitle,
@@ -158,15 +163,16 @@ export function NarratorForm({
       });
     }
   }, [toast, t]);
-  
+
   useEffect(() => {
     if (showCameraView && hasCameraPermission === null && isMounted) {
       startCamera();
     }
+    // Cleanup camera tracks if component unmounts or camera view is hidden
     return () => {
-      if (!showCameraView) {
-          stopCameraTracks();
-      }
+        if (!showCameraView) {
+             stopCameraTracks();
+        }
     };
   }, [showCameraView, startCamera, hasCameraPermission, isMounted, stopCameraTracks]);
 
@@ -186,14 +192,17 @@ export function NarratorForm({
         setImagePreview(dataUri);
         setShowCameraView(false);
         stopCameraTracks();
+        setLocationError(null);
+        setLatitude(null);
+        setLongitude(null);
       }
     }
   };
 
   const handleRequestLocation = () => {
-    clearImage();
-    form.setValue("locationQuery", undefined, { shouldValidate: true });
-    setShowSuggestions(false);
+    clearImageAndCamera();
+    form.setValue("imageDataUri", undefined, { shouldValidate: true }); // ensure image is cleared
+    // form.setValue("locationQuery", undefined, { shouldValidate: true }); // Clear text query too
 
     if (!navigator.geolocation) {
       setLocationError(t.geolocationNotSupported);
@@ -210,6 +219,7 @@ export function NarratorForm({
         setLatitude(position.coords.latitude);
         setLongitude(position.coords.longitude);
         setIsFetchingLocation(false);
+        form.setValue("locationQuery", USER_CURRENT_LOCATION_REQUEST_FLAG, { shouldValidate: true });
         toast({ title: t.geolocationSuccessTitle, description: t.geolocationSuccessDescription });
       },
       (error) => {
@@ -249,13 +259,13 @@ export function NarratorForm({
 
   const handleLocationQueryChange = async (query: string) => {
     form.setValue("locationQuery", query, { shouldValidate: true });
-    if (query && imagePreview) {
-        clearImage();
+    if (query.trim().length > 0) { // Only clear image if user is actively typing a query
+        clearImageAndCamera();
+        setLocationError(null);
+        setLatitude(null);
+        setLongitude(null);
     }
-    if (query && showCameraView) {
-        setShowCameraView(false);
-        stopCameraTracks();
-    }
+
 
     if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
 
@@ -265,7 +275,7 @@ export function NarratorForm({
       setIsFetchingSuggestions(false);
       return;
     }
-    
+
     setIsFetchingSuggestions(true);
     setShowSuggestions(true);
 
@@ -284,11 +294,10 @@ export function NarratorForm({
 
   const handleSuggestionClick = (suggestion: PlaceSuggestion) => {
     form.setValue("locationQuery", suggestion.description, { shouldValidate: true });
-    clearImage();
-    if (showCameraView) {
-      setShowCameraView(false);
-      stopCameraTracks();
-    }
+    clearImageAndCamera();
+    setLocationError(null);
+    setLatitude(null);
+    setLongitude(null);
     setSuggestions([]);
     setShowSuggestions(false);
   };
@@ -304,25 +313,37 @@ export function NarratorForm({
   }, []);
 
   const handleUploadButtonClick = () => {
-    clearImage();
+    clearImageAndCamera();
     form.setValue("locationQuery", undefined, {shouldValidate: true});
-    if (showCameraView) {
-      setShowCameraView(false);
-      stopCameraTracks();
-    }
+    setLocationError(null);
+    setLatitude(null);
+    setLongitude(null);
     fileInputRef.current?.click();
   }
 
   const handleCameraButtonClick = () => {
-    clearImage();
+    clearImageAndCamera();
     form.setValue("locationQuery", undefined, {shouldValidate: true});
+    setLocationError(null);
+    setLatitude(null);
+    setLongitude(null);
     setShowCameraView(true);
+    // startCamera will be called by useEffect
   }
 
   const handleCancelCamera = () => {
     setShowCameraView(false);
     stopCameraTracks();
   }
+
+  const FormSeparator = () => (
+    <div className="my-4 flex items-center">
+      <Separator className="flex-1" />
+      <span className="mx-4 text-xs uppercase text-muted-foreground">{t.orSeparatorText}</span>
+      <Separator className="flex-1" />
+    </div>
+  );
+
 
   if (!isMounted) {
     return (
@@ -332,15 +353,27 @@ export function NarratorForm({
           <Skeleton className="h-4 w-1/2 mt-1" />
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Visual Input Section Skeleton */}
           <div className="space-y-2">
-            <Skeleton className="h-5 w-1/3" />
-            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-5 w-1/3" /> {/* Section Title */}
+            <div className="grid grid-cols-2 gap-2">
+              <Skeleton className="h-10 w-full" /> {/* Scan Button */}
+              <Skeleton className="h-10 w-full" /> {/* Upload Button */}
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-px w-full my-4" /> {/* Separator */}
+          {/* Text Input Section Skeleton */}
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-1/3" /> {/* Section Title */}
+            <Skeleton className="h-10 w-full" /> {/* Text Input */}
           </div>
+          <Skeleton className="h-px w-full my-4" /> {/* Separator */}
+          {/* Current Location Section Skeleton */}
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-1/3" /> {/* Section Title */}
+            <Skeleton className="h-10 w-full" /> {/* Current Location Button */}
+          </div>
+           {/* Information Style Skeleton */}
           <div className="space-y-3 mt-4">
             <Skeleton className="h-5 w-1/3 mb-2" />
             {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-md border p-3 mt-2" />)}
@@ -357,7 +390,7 @@ export function NarratorForm({
     <Card className="shadow-lg w-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <MapPin className="h-6 w-6 text-primary" />
+          <Compass className="h-6 w-6 text-primary" />
           <span>{t.formTitle}</span>
         </CardTitle>
         <CardDescription>
@@ -367,91 +400,25 @@ export function NarratorForm({
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardContent className="space-y-6">
-            {/* Location Text Input */}
-            <FormField
-              control={form.control}
-              name="locationQuery"
-              render={({ field }) => (
-                <FormItem className="relative">
-                  <FormLabel className="flex items-center gap-2">
-                    <Search className="h-5 w-5" />
-                    {t.locationNameLabel}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type="text"
-                      placeholder={t.locationNamePlaceholder}
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) => handleLocationQueryChange(e.target.value)}
-                      onFocus={() => { if (field.value && suggestions.length > 0) setShowSuggestions(true); }}
-                      autoComplete="off"
-                      disabled={showCameraView}
-                    />
-                  </FormControl>
-                  {showSuggestions && (
-                    <div 
-                      ref={suggestionsContainerRef}
-                      className="absolute z-10 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-60 overflow-y-auto"
-                    >
-                      {isFetchingSuggestions && suggestions.length === 0 && (
-                        <div className="p-3 text-sm text-muted-foreground flex items-center justify-center">
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          {t.autocompleteLoading}
-                        </div>
-                      )}
-                      {!isFetchingSuggestions && suggestions.length === 0 && form.getValues("locationQuery") && form.getValues("locationQuery")!.length >=2 && (
-                         <div className="p-3 text-sm text-muted-foreground">{t.autocompleteNoResults}</div>
-                      )}
-                      {suggestions.map((suggestion) => (
-                        <Button type="button" variant="ghost" key={suggestion.place_id} onClick={() => handleSuggestionClick(suggestion)} className="w-full justify-start text-left px-3 py-2 h-auto">
-                          {suggestion.description}
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                  <FormDescription>{t.locationNameDescription}</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            {/* Action Buttons & Camera/Image Specific UI */}
-            <div className="space-y-4">
-              {!showCameraView && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <Button type="button" variant="outline" onClick={handleRequestLocation} disabled={isFetchingLocation || isGenerating} className="gap-1">
-                    <LocateFixed className={`h-4 w-4 ${isFetchingLocation ? 'animate-pulse' : ''}`} />
-                    {t.useCurrentLocationButton}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={handleCameraButtonClick} disabled={isGenerating} className="gap-1">
-                    <Camera className="h-4 w-4" />
-                    {t.scanWithCameraButton}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={handleUploadButtonClick} disabled={isGenerating} className="gap-1">
-                    <Upload className="h-4 w-4" />
-                    {t.uploadImageButton}
-                  </Button>
-                </div>
-              )}
+
+            {/* Section 1: Visual Input */}
+            <div>
+              <FormLabel className="text-sm font-medium">{t.imageInputSectionTitle}</FormLabel>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                <Button type="button" variant="outline" onClick={handleCameraButtonClick} disabled={isGenerating} className="gap-1 w-full">
+                  <Video /> {/* Changed from Camera for distinction */}
+                  {t.scanWithCameraButton}
+                </Button>
+                <Button type="button" variant="outline" onClick={handleUploadButtonClick} disabled={isGenerating} className="gap-1 w-full">
+                  <FileImage /> {/* Changed from Upload for distinction */}
+                  {t.uploadImageButton}
+                </Button>
+              </div>
               <Input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
               <canvas ref={canvasRef} className="hidden" />
 
-              {locationError && !showCameraView && (
-                <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>{t.geolocationErrorTitle}</AlertTitle><AlertDescription>{locationError}</AlertDescription></Alert>
-              )}
-              {latitude && longitude && !locationError && !showCameraView && (
-                <Alert variant="default" className="bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700">
-                  <LocateFixed className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  <AlertTitle className="text-green-700 dark:text-green-300">{t.geolocationSuccessTitle}</AlertTitle>
-                  <AlertDescription className="text-green-600 dark:text-green-400">
-                    {t.geolocationCoordinates}: {latitude.toFixed(4)}, {longitude.toFixed(4)}
-                  </AlertDescription>
-                </Alert>
-              )}
-
               {showCameraView && (
-                <div className="space-y-2">
+                <div className="mt-4 space-y-2">
                   {hasCameraPermission === false && (
                     <Alert variant="destructive">
                       <AlertTriangle className="h-4 w-4" />
@@ -459,15 +426,16 @@ export function NarratorForm({
                       <AlertDescription>{t.cameraAccessProblemDescription} {t.cameraNotSupported}</AlertDescription>
                     </Alert>
                   )}
-                  <div className="relative w-full aspect-video bg-muted rounded-md overflow-hidden">
+                   {(hasCameraPermission === null && isMounted) && <Skeleton className="w-full aspect-video bg-muted rounded-md" />}
+                  <div className={cn("relative w-full aspect-video bg-muted rounded-md overflow-hidden", {"hidden": hasCameraPermission === null && isMounted})}>
                     <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted data-testid="camera-feed"/>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2 mt-2">
                     <Button type="button" onClick={handleCaptureImage} disabled={isGenerating || hasCameraPermission === false || !videoRef.current?.srcObject}>
-                      <Camera className="h-4 w-4 mr-2" /> {t.captureImageButton}
+                      <Camera className="mr-2"/> {t.captureImageButton}
                     </Button>
                      <Button type="button" variant="outline" onClick={handleCancelCamera} disabled={isGenerating}>
-                      <XCircle className="h-4 w-4 mr-2" /> {t.cancelCameraButton}
+                      <XCircle className="mr-2"/> {t.cancelCameraButton}
                     </Button>
                   </div>
                 </div>
@@ -479,20 +447,96 @@ export function NarratorForm({
                   <div className="relative w-full aspect-video border rounded-md overflow-hidden">
                     <NextImage src={imagePreview} alt={t.imagePreviewAlt} layout="fill" objectFit="contain" data-ai-hint="landmark photo"/>
                   </div>
-                  <Button variant="outline" size="sm" onClick={clearImage} disabled={isGenerating}>
-                    <XCircle className="h-4 w-4 mr-2" /> {t.clearImageButton}
+                  <Button variant="outline" size="sm" onClick={clearImageAndCamera} disabled={isGenerating}>
+                    <XCircle className="mr-2"/> {t.clearImageButton}
                   </Button>
                 </div>
               )}
-              <FormMessage>{form.formState.errors.imageDataUri?.message || form.formState.errors.root?.message}</FormMessage>
+              <FormMessage>{form.formState.errors.imageDataUri?.message}</FormMessage>
             </div>
-            
+
+            <FormSeparator />
+
+            {/* Section 2: Textual Input */}
+            <div>
+                <FormField
+                control={form.control}
+                name="locationQuery"
+                render={({ field }) => (
+                    <FormItem className="relative">
+                    <FormLabel className="text-sm font-medium">{t.describeLocationSectionTitle}</FormLabel>
+                    <FormControl>
+                        <Input
+                        type="text"
+                        placeholder={t.locationNamePlaceholder}
+                        {...field}
+                        value={field.value === USER_CURRENT_LOCATION_REQUEST_FLAG ? "" : (field.value ?? "")} // Don't show flag in input
+                        onChange={(e) => handleLocationQueryChange(e.target.value)}
+                        onFocus={() => { if (field.value && field.value !== USER_CURRENT_LOCATION_REQUEST_FLAG && suggestions.length > 0) setShowSuggestions(true); }}
+                        autoComplete="off"
+                        disabled={showCameraView || isGenerating}
+                        className="mt-1"
+                        />
+                    </FormControl>
+                    {showSuggestions && (
+                        <div
+                        ref={suggestionsContainerRef}
+                        className="absolute z-10 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-60 overflow-y-auto"
+                        >
+                        {isFetchingSuggestions && suggestions.length === 0 && (
+                            <div className="p-3 text-sm text-muted-foreground flex items-center justify-center">
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            {t.autocompleteLoading}
+                            </div>
+                        )}
+                        {!isFetchingSuggestions && suggestions.length === 0 && form.getValues("locationQuery") && form.getValues("locationQuery")!.length >=2 && (
+                            <div className="p-3 text-sm text-muted-foreground">{t.autocompleteNoResults}</div>
+                        )}
+                        {suggestions.map((suggestion) => (
+                            <Button type="button" variant="ghost" key={suggestion.place_id} onClick={() => handleSuggestionClick(suggestion)} className="w-full justify-start text-left px-3 py-2 h-auto">
+                            {suggestion.description}
+                            </Button>
+                        ))}
+                        </div>
+                    )}
+                    <FormDescription className="mt-1">{t.locationNameDescription}</FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+            </div>
+
+            <FormSeparator />
+
+            {/* Section 3: Current Location */}
+            <div>
+                <FormLabel className="text-sm font-medium">{t.currentLocationSectionTitle}</FormLabel>
+                <Button type="button" variant="outline" onClick={handleRequestLocation} disabled={isFetchingLocation || isGenerating} className="gap-1 w-full mt-2">
+                    <LocateFixed className={cn("mr-2", isFetchingLocation ? 'animate-pulse' : '')} />
+                    {t.useCurrentLocationButton}
+                </Button>
+                 {locationError && (
+                <Alert variant="destructive" className="mt-2"><AlertTriangle className="h-4 w-4" /><AlertTitle>{t.geolocationErrorTitle}</AlertTitle><AlertDescription>{locationError}</AlertDescription></Alert>
+              )}
+              {latitude && longitude && !locationError && (
+                <Alert variant="default" className="mt-2 bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700">
+                  <LocateFixed className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <AlertTitle className="text-green-700 dark:text-green-300">{t.geolocationSuccessTitle}</AlertTitle>
+                  <AlertDescription className="text-green-600 dark:text-green-400">
+                    {t.geolocationCoordinates}: {latitude.toFixed(4)}, {longitude.toFixed(4)}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+             <FormMessage>{form.formState.errors.root?.message}</FormMessage>
+
+
             {/* Information Style */}
             <FormField
               control={form.control}
               name="informationStyle"
               render={({ field }) => (
-                <FormItem className="space-y-3">
+                <FormItem className="space-y-3 pt-2"> {/* Added pt-2 for spacing */}
                   <FormLabel>{t.informationStyleLabel}</FormLabel>
                   <FormControl>
                     <RadioGroup
@@ -544,3 +588,5 @@ export function NarratorForm({
     </Card>
   );
 }
+
+    

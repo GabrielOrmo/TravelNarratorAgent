@@ -3,27 +3,29 @@
 
 import { generateImageDescription } from "@/ai/flows/image-to-description-flow";
 import type { GenerateImageDescriptionOutput } from "@/ai/flows/image-to-description-flow";
-import { narrationToAudio } from "@/ai/flows/narration-to-audio"; 
+import { narrationToAudio } from "@/ai/flows/narration-to-audio";
 import type { NarrationToAudioOutput } from "@/ai/flows/narration-to-audio";
-import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators"; // Ensure NarratorFormValues includes outputLanguage if used from form
+import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
 import { Client } from "@googlemaps/google-maps-services-js";
 
 export interface TravelNarrativeResult {
   narrativeText: string;
-  audioDataUri: string; 
+  audioDataUri: string;
   locationDescription: string;
-  outputLanguage: string; // This should be the language used for generation
-  informationStyle: string; 
-  userId: string; 
-  latitude?: number | null; 
-  longitude?: number | null; 
+  outputLanguage: string;
+  informationStyle: string;
+  userId: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 const WEBHOOK_URL = "https://n8n-mayia-test-u42339.vm.elestio.app/webhook/a21f3fcb-4808-495c-974a-7646892675a2";
+const USER_CURRENT_LOCATION_REQUEST_FLAG = "[USER_CURRENT_LOCATION_REQUEST]";
+
 
 export async function generateTravelNarrativeAction(
   rawValues: NarratorFormValues,
-  language: string, // This is the globally selected language
+  language: string,
   userId: string,
   latitude?: number | null,
   longitude?: number | null
@@ -41,7 +43,7 @@ export async function generateTravelNarrativeAction(
       return { error: "User ID is missing. Cannot proceed." };
     }
 
-    const { imageDataUri, locationQuery, informationStyle } = validation.data; 
+    const { imageDataUri, locationQuery, informationStyle } = validation.data;
     let identifiedLocationDescription: string;
 
     if (imageDataUri) {
@@ -53,26 +55,33 @@ export async function generateTravelNarrativeAction(
         return { error: "Failed to get description from the provided image. Please try a different image or ensure it's clear." };
       }
       identifiedLocationDescription = imageDescriptionResult.description;
+    } else if (locationQuery === USER_CURRENT_LOCATION_REQUEST_FLAG) {
+        if (latitude && longitude) {
+            identifiedLocationDescription = `Tell me about interesting places or hidden gems near my current location (Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}).`;
+        } else {
+            return { error: "Current location coordinates are not available for this request."};
+        }
     } else if (locationQuery) {
       identifiedLocationDescription = locationQuery;
     } else {
-      return { error: "Please provide either a location search term or an image." };
+      // This case should ideally be caught by form validation, but as a safeguard:
+      return { error: "Please provide a location input (image, text, or use current location)." };
     }
 
-    const effectiveOutputLanguage = language; // Use the globally selected language
+    const effectiveOutputLanguage = language;
 
     let narrativeTextFromWebhook: string;
     try {
       const headers: Record<string, string> = {
         'Style': informationStyle,
         'Prompt': identifiedLocationDescription,
-        'X-User-ID': userId, 
+        'X-User-ID': userId,
         'X-Output-Language': effectiveOutputLanguage,
         'X-Latitude': latitude?.toString() || '',
         'X-Longitude': longitude?.toString() || '',
-        'Follow-Up': "false", 
+        'Follow-Up': "false",
       };
-      
+
       const webhookResponse = await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: headers,
@@ -97,7 +106,7 @@ export async function generateTravelNarrativeAction(
       console.log("Attempting to generate audio for main narrative. Language:", effectiveOutputLanguage);
       const audioResult: NarrationToAudioOutput = await narrationToAudio({
         narratedText: narrativeTextFromWebhook,
-        voice: effectiveOutputLanguage, 
+        voice: effectiveOutputLanguage,
       });
       if (audioResult.audioDataUri) {
         audioDataUriForResult = audioResult.audioDataUri;
@@ -112,13 +121,13 @@ export async function generateTravelNarrativeAction(
 
     return {
       narrativeText: narrativeTextFromWebhook,
-      audioDataUri: audioDataUriForResult, 
-      locationDescription: identifiedLocationDescription,
+      audioDataUri: audioDataUriForResult,
+      locationDescription: identifiedLocationDescription, // Send back the description used for the prompt
       outputLanguage: effectiveOutputLanguage,
-      informationStyle, 
-      userId, 
-      latitude, 
-      longitude, 
+      informationStyle,
+      userId,
+      latitude,
+      longitude,
     };
 
   } catch (error) {
@@ -132,14 +141,13 @@ export async function generateTravelNarrativeAction(
 }
 
 export interface FollowUpServerInput {
-  currentNarrativeText: string; // No longer used for X-Current-Narrative header
   locationDescription: string;
   userQuestion: string;
-  language: string; // This is the target output language from global context
-  informationStyle: string; 
-  userId: string; 
-  latitude?: number | null; 
-  longitude?: number | null; 
+  language: string;
+  informationStyle: string;
+  userId: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface FollowUpResult {
@@ -162,15 +170,16 @@ export async function generateFollowUpAnswerAction(
     try {
       const headers: Record<string, string> = {
         'Style': input.informationStyle,
-        'Prompt': input.userQuestion, 
-        'X-User-ID': input.userId, 
-        'X-Output-Language': input.language, 
+        'Prompt': input.userQuestion,
+        'X-User-ID': input.userId,
+        'X-Output-Language': input.language,
         'X-Latitude': input.latitude?.toString() || '',
         'X-Longitude': input.longitude?.toString() || '',
-        'Follow-Up': "true", 
-        'X-Location-Context': input.locationDescription, 
+        'Follow-Up': "true",
+        // 'X-Current-Narrative' header removed as per user request
+        'X-Location-Context': input.locationDescription,
       };
-      
+
       console.log("Calling follow-up webhook with headers:", headers);
       const webhookResponse = await fetch(WEBHOOK_URL, {
         method: 'POST',
@@ -197,7 +206,7 @@ export async function generateFollowUpAnswerAction(
       console.log("Attempting to generate audio for follow-up. Language:", input.language);
       const audioResult: NarrationToAudioOutput = await narrationToAudio({
         narratedText: answerTextFromWebhook,
-        voice: input.language, 
+        voice: input.language,
       });
 
       if (audioResult.audioDataUri) {
@@ -239,7 +248,7 @@ export async function getPlaceAutocompleteSuggestions(
     return { error: "Autocomplete service is not configured." };
   }
   if (!query || query.trim().length < 2) {
-    return []; 
+    return [];
   }
 
   const client = new Client({});
@@ -249,7 +258,7 @@ export async function getPlaceAutocompleteSuggestions(
         input: query,
         key: process.env.GOOGLE_MAPS_API_KEY,
       },
-      timeout: 5000, 
+      timeout: 5000,
     });
 
     if (response.data.status === "OK") {
@@ -273,3 +282,4 @@ export async function getPlaceAutocompleteSuggestions(
   }
 }
 
+    

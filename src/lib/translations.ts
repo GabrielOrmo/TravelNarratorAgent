@@ -13,7 +13,12 @@ type TranslationKeys = {
   toastGenerationFailedTitle: string;
   // NarratorForm
   formTitle: string;
-  formDescription: string;
+  formDescription: string; // Updated
+  imageInputSectionTitle: string; // New
+  describeLocationSectionTitle: string; // New
+  currentLocationSectionTitle: string; // New
+  orSeparatorText: string; // New
+
   locationNameLabel: string;
   locationNamePlaceholder: string;
   locationNameDescription: string;
@@ -78,7 +83,7 @@ type TranslationKeys = {
   followUpAnswerReadyToastTitle: string;
   followUpAnswerReadyToastDescription: string;
   narrativeDisplayFooterWebhook: string;
-  exploreNewLocationButton: string; // New key
+  exploreNewLocationButton: string;
   emptyQuestionToastTitle: string;
   emptyQuestionToastDescription: string;
   voiceInputNotReadyToastTitle: string;
@@ -89,7 +94,7 @@ type TranslationKeys = {
   speechErrorToastDescription: (error: string) => string;
   couldNotStartRecordingToastTitle: string;
   couldNotStartRecordingToastDescription: (error: string) => string;
-  // PlaceholderCard
+  // PlaceholderCard (no longer used in main flow)
   placeholderCardTitle: string;
   placeholderCardDescription: string;
   // LoadingSpinner
@@ -99,20 +104,24 @@ type TranslationKeys = {
 const translationsData: Record<Locale, TranslationKeys> = {
   en: {
     appSubtitle: 'Your personal AI-powered axolotl travel tour guide.',
-    heroImageAlt: 'A stylized, friendly axolotl peeking over the Eiffel Tower, representing Aijolot Travel Guide.',
+    heroImageAlt: 'A stylized, friendly axolotl peeking over the Eiffel Tower.',
     footerCopyright: 'Aijolot Travel Guide. AI-powered by Genkit & External Agent.',
     toastNarrativeGeneratedTitle: 'Narrative Ready!',
     toastNarrativeGeneratedDescription: (location) => `Your agent response for ${location || 'the location'} is ready.`,
     toastGenerationFailedTitle: 'Generation Failed',
     formTitle: 'Where are we exploring?',
-    formDescription: 'Describe the location, use your current position, or provide an image.',
+    formDescription: 'Let Aijolot be your guide! Scan, upload an image, describe a place, or use your current location to discover hidden gems.',
+    imageInputSectionTitle: 'Point, Shoot, or Upload an Image',
+    describeLocationSectionTitle: 'Or, Type a Place to Explore',
+    currentLocationSectionTitle: "Discover What's Around You",
+    orSeparatorText: "OR",
     locationNameLabel: 'Location Name or Description',
     locationNamePlaceholder: 'e.g., Eiffel Tower, Paris',
-    locationNameDescription: 'Type the name or a brief description of the location.',
+    locationNameDescription: 'Type the name or a brief description.',
     autocompleteLoading: 'Loading suggestions...',
     autocompleteNoResults: 'No results found.',
     autocompleteErrorTitle: 'Autocomplete Error',
-    useCurrentLocationButton: 'Current Location',
+    useCurrentLocationButton: 'Use My Current Location',
     scanWithCameraButton: 'Scan w/ Camera',
     uploadImageButton: 'Upload Image',
     cancelCameraButton: 'Cancel Camera',
@@ -186,20 +195,24 @@ const translationsData: Record<Locale, TranslationKeys> = {
   },
   es: {
     appSubtitle: 'Tu guía turístico personal axolotl impulsado por IA.',
-    heroImageAlt: 'Un ajolote estilizado y amigable asomándose sobre la Torre Eiffel, representando a Aijolot Travel Guide.',
+    heroImageAlt: 'Un ajolote estilizado y amigable asomándose sobre la Torre Eiffel.',
     footerCopyright: 'Aijolot Travel Guide. IA impulsada por Genkit y Agente Externo.',
     toastNarrativeGeneratedTitle: '¡Respuesta del Agente Lista!',
     toastNarrativeGeneratedDescription: (location) => `La respuesta de tu agente para ${location || 'la ubicación'} está lista.`,
     toastGenerationFailedTitle: 'Falló la Generación',
     formTitle: '¿Dónde estamos explorando?',
-    formDescription: 'Describe la ubicación, usa tu posición actual o proporciona una imagen.',
+    formDescription: '¡Deja que Aijolot sea tu guía! Escanea, sube una imagen, describe un lugar o usa tu ubicación actual para descubrir joyas ocultas.',
+    imageInputSectionTitle: 'Apunta, Dispara o Sube una Imagen',
+    describeLocationSectionTitle: 'O, Escribe un Lugar para Explorar',
+    currentLocationSectionTitle: 'Descubre Qué Hay a tu Alrededor',
+    orSeparatorText: "O",
     locationNameLabel: 'Nombre o Descripción de la Ubicación',
     locationNamePlaceholder: 'Ej: Torre Eiffel, París',
-    locationNameDescription: 'Escribe el nombre o una breve descripción de la ubicación.',
+    locationNameDescription: 'Escribe el nombre o una breve descripción.',
     autocompleteLoading: 'Cargando sugerencias...',
     autocompleteNoResults: 'No se encontraron resultados.',
     autocompleteErrorTitle: 'Error de Autocompletar',
-    useCurrentLocationButton: 'Ubicación Actual',
+    useCurrentLocationButton: 'Usar Mi Ubicación Actual',
     scanWithCameraButton: 'Escanear c/ Cámara',
     uploadImageButton: 'Subir Imagen',
     cancelCameraButton: 'Cancelar Cámara',
@@ -273,20 +286,24 @@ const translationsData: Record<Locale, TranslationKeys> = {
   },
   fr: {
     appSubtitle: 'Votre guide touristique personnel axolotl alimenté par IA.',
-    heroImageAlt: 'Un axolotl stylisé et amical regardant par-dessus la Tour Eiffel, représentant Aijolot Travel Guide.',
+    heroImageAlt: 'Un axolotl stylisé et amical regardant par-dessus la Tour Eiffel.',
     footerCopyright: 'Aijolot Travel Guide. IA alimentée par Genkit & Agent Externe.',
     toastNarrativeGeneratedTitle: "Réponse de l'Agent Prête !",
     toastNarrativeGeneratedDescription: (location) => `La réponse de votre agent pour ${location || "l'endroit"} est prête.`,
     toastGenerationFailedTitle: 'Échec de la Génération',
     formTitle: 'Où explorons-nous ?',
-    formDescription: "Décrivez l'endroit, utilisez votre position actuelle ou fournissez une image.",
+    formDescription: "Laissez Aijolot être votre guide ! Scannez, téléchargez une image, décrivez un lieu ou utilisez votre position actuelle pour découvrir des trésors cachés.",
+    imageInputSectionTitle: "Pointez, Photographiez ou Téléchargez une Image",
+    describeLocationSectionTitle: "Ou, Décrivez un Lieu à Explorer",
+    currentLocationSectionTitle: 'Découvrez Ce Qui Vous Entoure',
+    orSeparatorText: "OU",
     locationNameLabel: 'Nom ou Description du Lieu',
     locationNamePlaceholder: 'Ex: Tour Eiffel, Paris',
-    locationNameDescription: 'Tapez le nom ou une brève description du lieu.',
+    locationNameDescription: 'Tapez le nom ou une brève description.',
     autocompleteLoading: 'Chargement des suggestions...',
     autocompleteNoResults: 'Aucun résultat trouvé.',
     autocompleteErrorTitle: "Erreur d'Autocomplétion",
-    useCurrentLocationButton: 'Position Actuelle',
+    useCurrentLocationButton: 'Utiliser Ma Position Actuelle',
     scanWithCameraButton: 'Scanner av/ Caméra',
     uploadImageButton: 'Télécharger Image',
     cancelCameraButton: 'Annuler Caméra',
@@ -364,3 +381,5 @@ export function useTranslations() {
   const { language } = useLanguage();
   return translationsData[language];
 }
+
+    
