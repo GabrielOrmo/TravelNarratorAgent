@@ -147,7 +147,7 @@ export function NarrativeDisplay({
   };
 
   const handleFollowUpSubmit = async (question: string) => {
-    if (!question.trim() || !narrativeText) { // Removed !locationDescription from check
+    if (!question.trim() || !narrativeText) { 
       if(!question.trim()) {
         toast({
           variant: "destructive",
@@ -155,8 +155,6 @@ export function NarrativeDisplay({
           description: t.emptyQuestionToastDescription,
         });
       }
-      // If narrativeText is missing, the follow-up UI shouldn't even be rendered.
-      // If it is, it's a more fundamental issue upstream.
       return;
     }
     if (!userId) {
@@ -174,7 +172,7 @@ export function NarrativeDisplay({
 
     const actionInput: FollowUpServerInput = {
       currentNarrativeText: narrativeText,
-      locationDescription: locationDescription, // Will be passed as "" if empty
+      locationDescription: locationDescription, 
       userQuestion: question,
       language: currentGlobalLanguage,
       informationStyle: informationStyle,
@@ -247,7 +245,7 @@ export function NarrativeDisplay({
         <Separator />
         <div>
           <h3 className="font-semibold mb-2">{t.narrativeTextLabel}</h3>
-          <ScrollArea className="h-60 w-full rounded-md border p-4 bg-background">
+          <ScrollArea className="min-h-[6rem] max-h-80 w-full rounded-md border p-4 bg-background">
             <p className="text-sm whitespace-pre-wrap">{narrativeText || t.noNarrativeText}</p>
           </ScrollArea>
         </div>
@@ -319,7 +317,7 @@ export function NarrativeDisplay({
                           {t.audioNotSupported}
                         </audio>
                       )}
-                    <ScrollArea className="h-32 w-full rounded-md border bg-background p-3">
+                    <ScrollArea className="min-h-[4rem] max-h-60 w-full rounded-md border bg-background p-3">
                       <p className="text-sm whitespace-pre-wrap">{followUpResult.answerText}</p>
                     </ScrollArea>
                   </div>
