@@ -25,7 +25,8 @@ interface NarrativeDisplayProps {
   longitude?: number | null;
 }
 
-const TYPING_SPEED_MS = 30; // Adjust for desired speed
+const TYPING_SPEED_MS = 30; 
+const SCROLL_THRESHOLD = 50; // Pixels from bottom to trigger auto-scroll
 
 export function NarrativeDisplay({ 
   narrativeText, 
@@ -48,6 +49,8 @@ export function NarrativeDisplay({
 
   const narrativeEndRef = useRef<HTMLDivElement>(null);
   const followUpEndRef = useRef<HTMLDivElement>(null);
+  const narrativeScrollAreaRef = useRef<HTMLDivElement>(null);
+  const followUpScrollAreaRef = useRef<HTMLDivElement>(null);
 
   const [isRecording, setIsRecording] = useState(false);
   const [transcribedQuestion, setTranscribedQuestion] = useState("");
@@ -63,14 +66,25 @@ export function NarrativeDisplay({
       return;
     }
 
-    setDisplayedNarrativeText(""); // Reset before starting
+    setDisplayedNarrativeText(""); 
     let index = 0;
     const intervalId = setInterval(() => {
       setDisplayedNarrativeText((prev) => prev + narrativeText[index]);
-      narrativeEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
       index++;
+
+      const viewport = narrativeScrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+      if (viewport) {
+        const { scrollHeight, scrollTop, clientHeight } = viewport;
+        if (scrollHeight - scrollTop - clientHeight <= SCROLL_THRESHOLD || index <= 2) {
+          narrativeEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+        }
+      } else {
+        narrativeEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      }
+
       if (index === narrativeText.length) {
         clearInterval(intervalId);
+        setTimeout(() => narrativeEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 50);
       }
     }, TYPING_SPEED_MS);
 
@@ -85,14 +99,25 @@ export function NarrativeDisplay({
       return;
     }
     
-    setDisplayedFollowUpAnswerText(""); // Reset before starting
+    setDisplayedFollowUpAnswerText(""); 
     let index = 0;
     const intervalId = setInterval(() => {
       setDisplayedFollowUpAnswerText((prev) => prev + answer[index]);
-      followUpEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
       index++;
+
+      const viewport = followUpScrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+      if (viewport) {
+        const { scrollHeight, scrollTop, clientHeight } = viewport;
+        if (scrollHeight - scrollTop - clientHeight <= SCROLL_THRESHOLD || index <= 2) {
+          followUpEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+        }
+      } else {
+        followUpEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      }
+      
       if (index === answer.length) {
         clearInterval(intervalId);
+        setTimeout(() => followUpEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 50);
       }
     }, TYPING_SPEED_MS);
 
@@ -178,8 +203,8 @@ export function NarrativeDisplay({
     } else {
       setMicPermissionError(null);
       setTranscribedQuestion("");
-      setFollowUpResult(null); // Clear previous follow-up result
-      setDisplayedFollowUpAnswerText(""); // Clear previous typed follow-up
+      setFollowUpResult(null); 
+      setDisplayedFollowUpAnswerText(""); 
       try {
         if (speechRecognition.lang !== (currentGlobalLanguage || 'en-US')) {
             speechRecognition.lang = currentGlobalLanguage || 'en-US';
@@ -220,10 +245,11 @@ export function NarrativeDisplay({
 
 
     setIsGeneratingFollowUp(true);
-    setFollowUpResult(null); // Clear previous result
-    setDisplayedFollowUpAnswerText(""); // Clear previous typed text
+    setFollowUpResult(null); 
+    setDisplayedFollowUpAnswerText(""); 
 
     const actionInput: FollowUpServerInput = {
+      currentNarrativeText: narrativeText, // Keep sending for context if agent uses it
       locationDescription: locationDescription, 
       userQuestion: question,
       language: currentGlobalLanguage,
@@ -297,7 +323,7 @@ export function NarrativeDisplay({
         <Separator />
         <div>
           <h3 className="font-semibold mb-2">{t.narrativeTextLabel}</h3>
-          <ScrollArea className="min-h-[6rem] max-h-80 w-full rounded-md border p-4 bg-background">
+          <ScrollArea ref={narrativeScrollAreaRef} className="min-h-[6rem] max-h-80 w-full rounded-md border p-4 bg-background">
             <p className="text-sm whitespace-pre-wrap break-words">
               {displayedNarrativeText || (!narrativeText && t.noNarrativeText) || ""}
             </p>
@@ -372,7 +398,7 @@ export function NarrativeDisplay({
                           {t.audioNotSupported}
                         </audio>
                       )}
-                    <ScrollArea className="min-h-[4rem] max-h-60 w-full rounded-md border bg-background p-3">
+                    <ScrollArea ref={followUpScrollAreaRef} className="min-h-[4rem] max-h-60 w-full rounded-md border bg-background p-3">
                       <p className="text-sm whitespace-pre-wrap break-words">
                         {displayedFollowUpAnswerText}
                       </p>
@@ -394,3 +420,5 @@ export function NarrativeDisplay({
   );
 }
 
+
+    
