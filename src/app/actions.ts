@@ -19,7 +19,7 @@ export interface TravelNarrativeResult {
   longitude?: number | null; 
 }
 
-const WEBHOOK_URL = "https://n8n-mayia-test-u42339.vm.elestio.app/webhook-test/a21f3fcb-4808-495c-974a-7646892675a2";
+const WEBHOOK_URL = "https://n8n-mayia-test-u42339.vm.elestio.app/webhook/a21f3fcb-4808-495c-974a-7646892675a2";
 
 export async function generateTravelNarrativeAction(
   rawValues: NarratorFormValues,
@@ -151,6 +151,7 @@ export async function generateFollowUpAnswerAction(
         'X-Latitude': input.latitude?.toString() || '',
         'X-Longitude': input.longitude?.toString() || '',
         'Follow-Up': "true", 
+        // 'X-Current-Narrative': input.currentNarrativeText, // Removed as per user request
         'X-Location-Context': input.locationDescription, 
       };
       
