@@ -6,140 +6,152 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { BotMessageSquare, Volume2, MapPin, Mic, CornerDownLeft, User, AlertTriangle, Info } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { BotMessageSquare, User, Volume2, MapPin, Mic, CornerDownLeft, AlertTriangle, Info, Send } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
 import { generateFollowUpAnswerAction, type FollowUpResult, type FollowUpServerInput } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslations } from "@/lib/translations";
+import { cn } from "@/lib/utils";
 
 interface NarrativeDisplayProps {
   narrativeText: string;
-  audioDataUri: string; 
+  audioDataUri: string;
   locationDescription: string;
-  outputLanguage: string;
+  outputLanguage: string; // Used for passing to follow-up action
   informationStyle: string;
   userId: string;
   latitude?: number | null;
   longitude?: number | null;
 }
 
-const TYPING_SPEED_MS = 30; 
+interface ChatMessage {
+  id: string;
+  sender: 'user' | 'ai';
+  text: string;
+  audioDataUri?: string;
+  timestamp: Date;
+}
+
+const TYPING_SPEED_MS = 30;
 const SCROLL_THRESHOLD = 50; // Pixels from bottom to trigger auto-scroll
 
-export function NarrativeDisplay({ 
-  narrativeText, 
-  audioDataUri, 
-  locationDescription, 
+export function NarrativeDisplay({
+  narrativeText,
+  audioDataUri,
+  locationDescription,
   outputLanguage,
   informationStyle,
   userId,
   latitude,
-  longitude 
+  longitude,
 }: NarrativeDisplayProps) {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const followUpAudioRef = useRef<HTMLAudioElement>(null);
+  const initialAudioRef = useRef<HTMLAudioElement>(null);
+  const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
+
+
   const { toast } = useToast();
   const { language: currentGlobalLanguage } = useLanguage();
   const t = useTranslations();
 
-  const [displayedNarrativeText, setDisplayedNarrativeText] = useState("");
-  const [displayedFollowUpAnswerText, setDisplayedFollowUpAnswerText] = useState("");
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [currentDisplayedText, setCurrentDisplayedText] = useState<Record<string, string>>({});
+  const [activeTypingMessageId, setActiveTypingMessageId] = useState<string | null>(null);
 
-  const narrativeEndRef = useRef<HTMLDivElement>(null);
-  const followUpEndRef = useRef<HTMLDivElement>(null);
-  const narrativeScrollAreaRef = useRef<HTMLDivElement>(null);
-  const followUpScrollAreaRef = useRef<HTMLDivElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollAreaRef = useRef<HTMLDivElement>(null);
 
   const [isRecording, setIsRecording] = useState(false);
   const [transcribedQuestion, setTranscribedQuestion] = useState("");
   const [isGeneratingFollowUp, setIsGeneratingFollowUp] = useState(false);
-  const [followUpResult, setFollowUpResult] = useState<FollowUpResult | null>(null);
   const [speechRecognition, setSpeechRecognition] = useState<SpeechRecognition | null>(null);
   const [micPermissionError, setMicPermissionError] = useState<string | null>(null);
 
-  // Effect for main narrative typing animation
+  // Typing animation effect
   useEffect(() => {
-    if (!narrativeText) {
-      setDisplayedNarrativeText("");
+    if (!activeTypingMessageId) return;
+
+    const messageToAnimate = chatHistory.find(msg => msg.id === activeTypingMessageId && msg.sender === 'ai');
+    if (!messageToAnimate || !messageToAnimate.text) {
+      setActiveTypingMessageId(null);
       return;
     }
 
-    setDisplayedNarrativeText(""); 
-    let index = 0;
+    // Initialize display text for the current typing message if not already started
+     if (currentDisplayedText[activeTypingMessageId] === undefined) {
+        setCurrentDisplayedText(prev => ({ ...prev, [activeTypingMessageId]: "" }));
+    }
+
+
+    let index = (currentDisplayedText[activeTypingMessageId] || "").length;
+
+    if (index === messageToAnimate.text.length) { // Already fully typed
+        setActiveTypingMessageId(null);
+        return;
+    }
+
     const intervalId = setInterval(() => {
-      setDisplayedNarrativeText((prev) => prev + narrativeText[index]);
+      setCurrentDisplayedText(prev => ({
+        ...prev,
+        [activeTypingMessageId]: (prev[activeTypingMessageId] || "") + messageToAnimate.text[index]
+      }));
       index++;
 
-      const viewport = narrativeScrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+      const viewport = chatScrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
       if (viewport) {
         const { scrollHeight, scrollTop, clientHeight } = viewport;
         if (scrollHeight - scrollTop - clientHeight <= SCROLL_THRESHOLD || index <= 2) {
-          narrativeEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+          chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
         }
       } else {
-        narrativeEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
       }
 
-      if (index === narrativeText.length) {
+      if (index >= messageToAnimate.text.length) {
         clearInterval(intervalId);
-        setTimeout(() => narrativeEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 50);
+        setActiveTypingMessageId(null);
+        setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 50);
       }
     }, TYPING_SPEED_MS);
 
     return () => clearInterval(intervalId);
-  }, [narrativeText]);
+  }, [activeTypingMessageId, chatHistory, currentDisplayedText]);
 
-  // Effect for follow-up answer typing animation
+
+  // Effect for initial narrative
   useEffect(() => {
-    const answer = followUpResult?.answerText;
-    if (!answer) {
-      setDisplayedFollowUpAnswerText("");
-      return;
+    setChatHistory([]);
+    setCurrentDisplayedText({});
+    setActiveTypingMessageId(null);
+
+    if (narrativeText) {
+      const initialMessageId = `ai-initial-${Date.now()}`;
+      const initialAiMessage: ChatMessage = {
+        id: initialMessageId,
+        sender: 'ai',
+        text: narrativeText,
+        audioDataUri: audioDataUri, // Main audio is associated with this first message
+        timestamp: new Date(),
+      };
+      setChatHistory([initialAiMessage]);
+      if (narrativeText.trim() !== "") {
+        setActiveTypingMessageId(initialMessageId);
+      }
     }
-    
-    setDisplayedFollowUpAnswerText(""); 
-    let index = 0;
-    const intervalId = setInterval(() => {
-      setDisplayedFollowUpAnswerText((prev) => prev + answer[index]);
-      index++;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [narrativeText]); // audioDataUri removed to prevent re-triggering chat reset if only audio changes
 
-      const viewport = followUpScrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
-      if (viewport) {
-        const { scrollHeight, scrollTop, clientHeight } = viewport;
-        if (scrollHeight - scrollTop - clientHeight <= SCROLL_THRESHOLD || index <= 2) {
-          followUpEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-        }
-      } else {
-        followUpEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-      }
-      
-      if (index === answer.length) {
-        clearInterval(intervalId);
-        setTimeout(() => followUpEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 50);
-      }
-    }, TYPING_SPEED_MS);
-
-    return () => clearInterval(intervalId);
-  }, [followUpResult?.answerText]);
-
-
-  useEffect(() => {
-    if (audioDataUri && audioRef.current) {
-      audioRef.current.src = audioDataUri; 
-      audioRef.current.load();
+   useEffect(() => {
+    if (audioDataUri && initialAudioRef.current) {
+      initialAudioRef.current.src = audioDataUri;
+      initialAudioRef.current.load();
     }
   }, [audioDataUri]);
 
-  useEffect(() => {
-    if (followUpResult?.answerAudioDataUri && followUpAudioRef.current) {
-      followUpAudioRef.current.src = followUpResult.answerAudioDataUri; 
-      followUpAudioRef.current.load();
-    }
-  }, [followUpResult?.answerAudioDataUri]);
 
-  useEffect(() => {
+  // Speech recognition setup
+   useEffect(() => {
     if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
       const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognitionAPI) {
@@ -152,7 +164,7 @@ export function NarrativeDisplay({
           const transcript = event.results[event.results.length -1][0].transcript.trim();
           setTranscribedQuestion(transcript);
           setIsRecording(false);
-          handleFollowUpSubmit(transcript);
+          if (transcript) handleFollowUpSubmit(transcript); // Auto-submit after transcription
         };
 
         recognitionInstance.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -160,17 +172,9 @@ export function NarrativeDisplay({
           let errorMsgForToast = event.error;
           if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
             setMicPermissionError(t.micDeniedToastDescription);
-             toast({
-              variant: "destructive",
-              title: t.micDeniedToastTitle,
-              description: t.micDeniedToastDescription,
-            });
+             toast({ variant: "destructive", title: t.micDeniedToastTitle, description: t.micDeniedToastDescription });
           } else {
-             toast({
-              variant: "destructive",
-              title: t.speechErrorToastTitle,
-              description: t.speechErrorToastDescription(errorMsgForToast),
-            });
+             toast({ variant: "destructive", title: t.speechErrorToastTitle, description: t.speechErrorToastDescription(errorMsgForToast) });
           }
           setIsRecording(false);
         };
@@ -185,15 +189,12 @@ export function NarrativeDisplay({
     } else {
        setMicPermissionError(t.voiceInputNotReadyToastDescription("Speech recognition not available in this environment."));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toast, currentGlobalLanguage, t]);
 
   const handleToggleRecording = () => {
-    if (!speechRecognition) {
-      toast({
-        variant: "destructive",
-        title: t.voiceInputNotReadyToastTitle,
-        description: t.voiceInputNotReadyToastDescription(micPermissionError || "Speech recognition is not available."),
-      });
+     if (!speechRecognition) {
+      toast({ variant: "destructive", title: t.voiceInputNotReadyToastTitle, description: t.voiceInputNotReadyToastDescription(micPermissionError || "Speech recognition is not available.") });
       return;
     }
 
@@ -203,8 +204,6 @@ export function NarrativeDisplay({
     } else {
       setMicPermissionError(null);
       setTranscribedQuestion("");
-      setFollowUpResult(null); 
-      setDisplayedFollowUpAnswerText(""); 
       try {
         if (speechRecognition.lang !== (currentGlobalLanguage || 'en-US')) {
             speechRecognition.lang = currentGlobalLanguage || 'en-US';
@@ -213,46 +212,46 @@ export function NarrativeDisplay({
         setIsRecording(true);
       } catch (e: any) {
          console.error("Error starting speech recognition:", e);
-         toast({
-            variant: "destructive",
-            title: t.couldNotStartRecordingToastTitle,
-            description: t.couldNotStartRecordingToastDescription(e.message),
-         });
+         toast({ variant: "destructive", title: t.couldNotStartRecordingToastTitle, description: t.couldNotStartRecordingToastDescription(e.message) });
          setIsRecording(false);
       }
     }
   };
 
   const handleFollowUpSubmit = async (question: string) => {
-    if (!question.trim() || !narrativeText) { 
-      if(!question.trim()) {
-        toast({
-          variant: "destructive",
-          title: t.emptyQuestionToastTitle,
-          description: t.emptyQuestionToastDescription,
-        });
-      }
+    const trimmedQuestion = question.trim();
+    if (!trimmedQuestion) {
+      toast({ variant: "destructive", title: t.emptyQuestionToastTitle, description: t.emptyQuestionToastDescription });
       return;
     }
     if (!userId) {
-       toast({
-        variant: "destructive",
-        title: "User ID Missing",
-        description: "Cannot process follow-up without a User ID.",
-      });
+       toast({ variant: "destructive", title: "User ID Missing", description: "Cannot process follow-up without a User ID." });
       return;
     }
 
-
     setIsGeneratingFollowUp(true);
-    setFollowUpResult(null); 
-    setDisplayedFollowUpAnswerText(""); 
+    // setActiveTypingMessageId(null); // Stop any previous AI typing
+
+    const userMessageId = `user-${Date.now()}`;
+    const userMessage: ChatMessage = {
+      id: userMessageId,
+      sender: 'user',
+      text: trimmedQuestion,
+      timestamp: new Date(),
+    };
+    setChatHistory(prev => [...prev, userMessage]);
+    setTranscribedQuestion(""); 
+
+    // Find the original narrative text for context
+    const initialNarrativeMessage = chatHistory.find(msg => msg.id.startsWith('ai-initial'));
+    const contextNarrative = initialNarrativeMessage ? initialNarrativeMessage.text : narrativeText;
+
 
     const actionInput: FollowUpServerInput = {
-      currentNarrativeText: narrativeText, // Keep sending for context if agent uses it
-      locationDescription: locationDescription, 
-      userQuestion: question,
-      language: currentGlobalLanguage,
+      currentNarrativeText: contextNarrative, 
+      locationDescription: locationDescription,
+      userQuestion: trimmedQuestion,
+      language: outputLanguage, // Use outputLanguage from props for consistency
       informationStyle: informationStyle,
       userId: userId,
       latitude: latitude,
@@ -260,27 +259,29 @@ export function NarrativeDisplay({
     };
 
     const result = await generateFollowUpAnswerAction(actionInput);
-
     setIsGeneratingFollowUp(false);
 
     if ("error" in result) {
-      toast({
-        variant: "destructive",
-        title: t.followUpFailedToastTitle,
-        description: result.error,
-      });
+      toast({ variant: "destructive", title: t.followUpFailedToastTitle, description: result.error });
     } else {
-      setFollowUpResult(result);
-       toast({
-        title: t.followUpAnswerReadyToastTitle,
-        description: t.followUpAnswerReadyToastDescription,
-      });
+      const aiResponseMessageId = `ai-followup-${Date.now()}`;
+      const aiResponseMessage: ChatMessage = {
+        id: aiResponseMessageId,
+        sender: 'ai',
+        text: result.answerText,
+        audioDataUri: result.answerAudioDataUri,
+        timestamp: new Date(),
+      };
+      setChatHistory(prev => [...prev, aiResponseMessage]);
+      if (result.answerText.trim() !== "") {
+        setActiveTypingMessageId(aiResponseMessageId);
+      }
+      toast({ title: t.followUpAnswerReadyToastTitle, description: t.followUpAnswerReadyToastDescription });
     }
   };
 
-
   return (
-    <Card className="shadow-lg w-full">
+    <Card className="shadow-lg w-full flex flex-col max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-10rem)]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <BotMessageSquare className="h-6 w-6 text-primary" />
@@ -290,135 +291,153 @@ export function NarrativeDisplay({
           {t.narrativeDisplayDescription}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+
+      <CardContent className="space-y-2 pb-2">
         {locationDescription && (
-          <div className="pb-2">
-            <h3 className="font-semibold mb-1 flex items-center gap-2 text-md">
-              <MapPin className="h-5 w-5 text-accent" />
+          <div className="pb-1">
+            <h3 className="font-semibold mb-0.5 flex items-center gap-2 text-sm">
+              <MapPin className="h-4 w-4 text-accent" />
               {t.identifiedLocationLabel}
             </h3>
-            <p className="text-sm text-foreground pl-7">{locationDescription}</p>
+            <p className="text-xs text-foreground pl-6">{locationDescription}</p>
           </div>
         )}
-        <Separator />
-        <div>
-          <h3 className="font-semibold mb-2 flex items-center gap-2 pt-2">
-            <Volume2 className="h-5 w-5 text-secondary" />
-            {t.audioNarrationLabel}
-          </h3>
-          {audioDataUri ? (
-            <audio ref={audioRef} controls src={audioDataUri} className="w-full">
-              {t.audioNotSupported}
-            </audio>
-          ) : (
-            <Alert variant="default" className="bg-muted/50">
-              <Info className="h-4 w-4" />
-              <AlertTitle>{t.audioUnavailableTitle}</AlertTitle>
-              <AlertDescription>
-                {t.audioUnavailableDescription}
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
-        <Separator />
-        <div>
-          <h3 className="font-semibold mb-2">{t.narrativeTextLabel}</h3>
-          <ScrollArea ref={narrativeScrollAreaRef} className="min-h-[6rem] max-h-80 w-full rounded-md border p-4 bg-background">
-            <p className="text-sm whitespace-pre-wrap break-words">
-              {displayedNarrativeText || (!narrativeText && t.noNarrativeText) || ""}
-            </p>
-            <div ref={narrativeEndRef} />
-          </ScrollArea>
-        </div>
-        
-        {narrativeText && (
-          <>
+         {/* Initial Audio Player - separated for clarity */}
+        {chatHistory.some(msg => msg.id.startsWith('ai-initial') && msg.audioDataUri) && (
+            <>
             <Separator />
-            <div className="space-y-4 pt-2">
-              <h3 className="font-semibold flex items-center gap-2">
-                <CornerDownLeft className="h-5 w-5 text-primary" />
-                {t.followUpQuestionLabel}
-              </h3>
-              {micPermissionError && (
-                <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>{t.micIssueAlertTitle}</AlertTitle>
-                  <AlertDescription>{t.micIssueAlertDescription(micPermissionError)}</AlertDescription>
-                </Alert>
-              )}
-              <div className="flex items-center gap-2">
-                <Textarea
-                  placeholder={t.followUpPlaceholder}
-                  value={transcribedQuestion}
-                  onChange={(e) => setTranscribedQuestion(e.target.value)}
-                  rows={2}
-                  className="flex-grow"
-                  disabled={isRecording || isGeneratingFollowUp}
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleToggleRecording}
-                  disabled={!speechRecognition || isGeneratingFollowUp}
-                  className={isRecording ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : ""}
-                  aria-label={isRecording ? t.stopRecordingButtonAria : t.startRecordingButtonAria}
-                >
-                  <Mic className="h-5 w-5" />
-                </Button>
-              </div>
-               <Button 
-                onClick={() => handleFollowUpSubmit(transcribedQuestion)} 
-                disabled={isGeneratingFollowUp || isRecording || !transcribedQuestion.trim() || !userId}
-                className="w-full"
-              >
-                {isGeneratingFollowUp ? t.gettingAnswerButton : t.submitQuestionButton}
-              </Button>
-
-              {isGeneratingFollowUp && (
-                 <div className="flex items-center justify-center py-4">
-                    <BotMessageSquare className="h-6 w-6 animate-pulse text-primary mr-2" />
-                    <p className="text-sm text-muted-foreground">{t.aiThinking}</p>
-                 </div>
-              )}
-
-              {followUpResult && (
-                <div className="mt-4 space-y-3 p-4 border rounded-md bg-muted/50">
-                  <div>
-                    <h4 className="font-medium flex items-center gap-2 text-sm">
-                      <User className="h-4 w-4 text-accent" /> {t.yourQuestionLabel}
-                    </h4>
-                    <p className="text-sm text-foreground pl-6">{transcribedQuestion}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium flex items-center gap-2 text-sm">
-                      <BotMessageSquare className="h-4 w-4 text-primary" /> {t.aiAnswerLabel}
-                    </h4>
-                     {followUpResult.answerAudioDataUri && (
-                        <audio ref={followUpAudioRef} controls src={followUpResult.answerAudioDataUri} className="w-full my-2">
-                          {t.audioNotSupported}
-                        </audio>
-                      )}
-                    <ScrollArea ref={followUpScrollAreaRef} className="min-h-[4rem] max-h-60 w-full rounded-md border bg-background p-3">
-                      <p className="text-sm whitespace-pre-wrap break-words">
-                        {displayedFollowUpAnswerText}
-                      </p>
-                      <div ref={followUpEndRef} />
-                    </ScrollArea>
-                  </div>
-                </div>
-              )}
+            <div>
+                <h3 className="font-semibold mb-1 flex items-center gap-2 text-sm pt-1">
+                    <Volume2 className="h-4 w-4 text-secondary" />
+                    {t.audioNarrationLabel} ({t.initialNarrativeLabel})
+                </h3>
+                <audio ref={initialAudioRef} controls src={chatHistory.find(msg => msg.id.startsWith('ai-initial'))?.audioDataUri} className="w-full">
+                    {t.audioNotSupported}
+                </audio>
             </div>
-          </>
+            </>
+        )}
+        {!chatHistory.some(msg => msg.id.startsWith('ai-initial') && msg.audioDataUri) && narrativeText && (
+             <>
+            <Separator />
+             <Alert variant="default" className="bg-muted/50 mt-1 text-xs py-2">
+                <Info className="h-3 w-3" />
+                <AlertTitle className="text-xs">{t.audioUnavailableTitle}</AlertTitle>
+                <AlertDescription className="text-xs">{t.audioUnavailableDescription}</AlertDescription>
+            </Alert>
+            </>
         )}
       </CardContent>
-      <CardFooter>
-        <p className="text-xs text-muted-foreground">
-            {t.narrativeDisplayFooterWebhook}
-        </p>
+
+      <Separator />
+
+      <ScrollArea ref={chatScrollAreaRef} className="flex-grow w-full p-4 bg-background min-h-[12rem]">
+        <div className="space-y-4">
+          {chatHistory.map((message) => (
+            <div
+              key={message.id}
+              className={`flex flex-col ${
+                message.sender === 'user' ? 'items-end' : 'items-start'
+              }`}
+            >
+              <div
+                className={`max-w-[85%] p-3 rounded-xl shadow-sm ${ // reduced shadow
+                  message.sender === 'user'
+                    ? 'bg-primary text-primary-foreground rounded-br-none'
+                    : 'bg-card text-card-foreground rounded-bl-none border'
+                }`}
+              >
+                <p className="text-sm whitespace-pre-wrap break-words">
+                  {activeTypingMessageId === message.id
+                    ? (currentDisplayedText[message.id] || "") + "▎"
+                    : message.text || (message.sender === 'ai' ? t.noNarrativeText : "")
+                  }
+                </p>
+              </div>
+              {message.sender === 'ai' && message.audioDataUri && activeTypingMessageId !== message.id && message.text.trim() !== "" && (
+                 <audio
+                    ref={(el) => { audioRefs.current[message.id] = el; }}
+                    controls
+                    src={message.audioDataUri}
+                    className="w-full max-w-[250px] mt-2 ml-0 sm:ml-2 self-start h-8" // smaller audio player
+                >
+                    {t.audioNotSupported}
+                </audio>
+              )}
+               <p className={`text-xs mt-1 px-1 ${message.sender === 'user' ? 'text-muted-foreground/80 self-end' : 'text-muted-foreground/80 self-start'}`}>
+                {message.sender === 'user' ? <User className="inline h-3 w-3 mr-1"/> : <BotMessageSquare className="inline h-3 w-3 mr-1 text-primary"/>}
+                {/* {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} */}
+              </p>
+            </div>
+          ))}
+          <div ref={chatEndRef} />
+        </div>
+         {!narrativeText && !chatHistory.length && (
+            <div className="text-center text-muted-foreground py-8">
+                <BotMessageSquare className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                <p>{t.startConversationPlaceholder}</p>
+            </div>
+        )}
+      </ScrollArea>
+      
+      {chatHistory.length > 0 && ( // Show input only if a conversation has started
+        <>
+          <Separator />
+          <div className="p-3 border-t space-y-2 bg-muted/50">
+            {micPermissionError && (
+              <Alert variant="destructive" className="mb-2">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>{t.micIssueAlertTitle}</AlertTitle>
+                <AlertDescription>{t.micIssueAlertDescription(micPermissionError)}</AlertDescription>
+              </Alert>
+            )}
+            <div className="flex items-center gap-2">
+              <Textarea
+                placeholder={t.followUpPlaceholder}
+                value={transcribedQuestion}
+                onChange={(e) => setTranscribedQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey && !isGeneratingFollowUp && !isRecording && transcribedQuestion.trim()) {
+                    e.preventDefault();
+                    handleFollowUpSubmit(transcribedQuestion);
+                  }
+                }}
+                rows={1}
+                className="flex-grow resize-none py-2.5 px-3 text-sm focus-within:ring-1 focus-within:ring-ring"
+                disabled={isRecording || isGeneratingFollowUp}
+              />
+              <Button
+                variant="ghost" // Changed to ghost for less emphasis
+                size="icon"
+                onClick={handleToggleRecording}
+                disabled={!speechRecognition || isGeneratingFollowUp}
+                className={cn("shrink-0 rounded-full", isRecording ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : "text-muted-foreground hover:text-primary")}
+                aria-label={isRecording ? t.stopRecordingButtonAria : t.startRecordingButtonAria}
+              >
+                <Mic className="h-5 w-5" />
+              </Button>
+              <Button 
+                onClick={() => handleFollowUpSubmit(transcribedQuestion)} 
+                disabled={isGeneratingFollowUp || isRecording || !transcribedQuestion.trim() || !userId}
+                className="shrink-0 rounded-full" // Make submit button icon size too
+                size="icon"
+                aria-label={t.submitQuestionButton}
+              >
+                <Send className="h-5 w-5" /> 
+              </Button>
+            </div>
+            {isGeneratingFollowUp && (
+              <div className="flex items-center justify-center pt-1">
+                  <BotMessageSquare className="h-4 w-4 animate-pulse text-primary mr-1.5" />
+                  <p className="text-xs text-muted-foreground">{t.aiThinking}</p>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+      <CardFooter className="py-2 text-xs text-muted-foreground border-t">
+        {t.narrativeDisplayFooterWebhook}
       </CardFooter>
     </Card>
   );
 }
-
-
-    
