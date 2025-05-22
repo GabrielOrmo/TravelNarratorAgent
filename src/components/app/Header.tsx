@@ -1,7 +1,7 @@
 
 "use client";
 
-import NextImage from 'next/image'; // Changed Image to NextImage to avoid conflict if any
+import NextImage from 'next/image'; 
 import { Languages } from 'lucide-react';
 import { useLanguage, type Locale } from '@/contexts/LanguageContext';
 // import { useTranslations } from '@/lib/translations'; // t.appSubtitle not needed here anymore
@@ -36,8 +36,8 @@ export function Header() {
         <NextImage 
           src={logoPath} 
           alt="Aijolot Travel Guide Logo" 
-          width={50} 
-          height={50} 
+          width={96} 
+          height={96} 
           className="h-12 w-auto" 
           data-ai-hint="axolotl logo"
           priority

@@ -67,13 +67,13 @@ export default function HomePage() {
       {/* Hero Section */}
       <div className="relative h-72 sm:h-80 md:h-96 w-full text-white">
         <Image
-          src="https://placehold.co/1200x400.png"
+          src="/banner.png"
           alt={t.heroImageAlt}
           layout="fill"
           objectFit="cover"
           className="z-0"
           priority
-          data-ai-hint="axolotl eiffel tower"
+          data-ai-hint="travel banner"
         />
         <div className="absolute inset-0 bg-black/50 z-10 flex flex-col items-center justify-center text-center p-4">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-4 [text-shadow:_2px_2px_4px_rgb(0_0_0_/_50%)]">
@@ -97,7 +97,6 @@ export default function HomePage() {
                   onGenerationComplete={handleGenerationComplete}
                   onGenerationError={handleGenerationError}
                   isGenerating={isGenerating}
-                  currentLanguage={language} // Pass currentLanguage from context
                 />
               </div>
             )}
