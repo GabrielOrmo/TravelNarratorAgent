@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { BotMessageSquare, User, Volume2, MapPin, Mic, CornerDownLeft, AlertTriangle, Info, Send } from "lucide-react";
+import { BotMessageSquare, User, Volume2, MapPin, Mic, CornerDownLeft, AlertTriangle, Info, Send, Compass } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { generateFollowUpAnswerAction, type FollowUpResult, type FollowUpServerInput } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -19,11 +19,12 @@ interface NarrativeDisplayProps {
   narrativeText: string;
   audioDataUri: string;
   locationDescription: string;
-  outputLanguage: string; // Used for passing to follow-up action
+  outputLanguage: string;
   informationStyle: string;
   userId: string;
   latitude?: number | null;
   longitude?: number | null;
+  onExploreNewLocation: () => void; // New prop
 }
 
 interface ChatMessage {
@@ -35,7 +36,7 @@ interface ChatMessage {
 }
 
 const TYPING_SPEED_MS = 30;
-const SCROLL_THRESHOLD = 50; // Pixels from bottom to trigger auto-scroll
+const SCROLL_THRESHOLD = 50;
 
 export function NarrativeDisplay({
   narrativeText,
@@ -46,10 +47,10 @@ export function NarrativeDisplay({
   userId,
   latitude,
   longitude,
+  onExploreNewLocation, // Destructure new prop
 }: NarrativeDisplayProps) {
   const initialAudioRef = useRef<HTMLAudioElement>(null);
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
-
 
   const { toast } = useToast();
   const { language: currentGlobalLanguage } = useLanguage();
@@ -68,7 +69,6 @@ export function NarrativeDisplay({
   const [speechRecognition, setSpeechRecognition] = useState<SpeechRecognition | null>(null);
   const [micPermissionError, setMicPermissionError] = useState<string | null>(null);
 
-  // Typing animation effect
   useEffect(() => {
     if (!activeTypingMessageId) return;
 
@@ -78,17 +78,15 @@ export function NarrativeDisplay({
       return;
     }
 
-    // Initialize display text for the current typing message if not already started
-     if (currentDisplayedText[activeTypingMessageId] === undefined) {
-        setCurrentDisplayedText(prev => ({ ...prev, [activeTypingMessageId]: "" }));
+    if (currentDisplayedText[activeTypingMessageId] === undefined) {
+      setCurrentDisplayedText(prev => ({ ...prev, [activeTypingMessageId]: "" }));
     }
-
 
     let index = (currentDisplayedText[activeTypingMessageId] || "").length;
 
-    if (index === messageToAnimate.text.length) { // Already fully typed
-        setActiveTypingMessageId(null);
-        return;
+    if (index >= messageToAnimate.text.length) {
+      setActiveTypingMessageId(null);
+      return;
     }
 
     const intervalId = setInterval(() => {
@@ -118,8 +116,6 @@ export function NarrativeDisplay({
     return () => clearInterval(intervalId);
   }, [activeTypingMessageId, chatHistory, currentDisplayedText]);
 
-
-  // Effect for initial narrative
   useEffect(() => {
     setChatHistory([]);
     setCurrentDisplayedText({});
@@ -131,7 +127,7 @@ export function NarrativeDisplay({
         id: initialMessageId,
         sender: 'ai',
         text: narrativeText,
-        audioDataUri: audioDataUri, // Main audio is associated with this first message
+        audioDataUri: audioDataUri,
         timestamp: new Date(),
       };
       setChatHistory([initialAiMessage]);
@@ -140,18 +136,16 @@ export function NarrativeDisplay({
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [narrativeText]); // audioDataUri removed to prevent re-triggering chat reset if only audio changes
+  }, [narrativeText]); // audioDataUri removed from deps
 
-   useEffect(() => {
+  useEffect(() => {
     if (audioDataUri && initialAudioRef.current) {
       initialAudioRef.current.src = audioDataUri;
       initialAudioRef.current.load();
     }
   }, [audioDataUri]);
 
-
-  // Speech recognition setup
-   useEffect(() => {
+  useEffect(() => {
     if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
       const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognitionAPI) {
@@ -161,10 +155,10 @@ export function NarrativeDisplay({
         recognitionInstance.lang = currentGlobalLanguage || 'en-US';
 
         recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
-          const transcript = event.results[event.results.length -1][0].transcript.trim();
+          const transcript = event.results[event.results.length - 1][0].transcript.trim();
           setTranscribedQuestion(transcript);
           setIsRecording(false);
-          if (transcript) handleFollowUpSubmit(transcript); // Auto-submit after transcription
+          if (transcript) handleFollowUpSubmit(transcript);
         };
 
         recognitionInstance.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -172,13 +166,13 @@ export function NarrativeDisplay({
           let errorMsgForToast = event.error;
           if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
             setMicPermissionError(t.micDeniedToastDescription);
-             toast({ variant: "destructive", title: t.micDeniedToastTitle, description: t.micDeniedToastDescription });
+            toast({ variant: "destructive", title: t.micDeniedToastTitle, description: t.micDeniedToastDescription });
           } else {
-             toast({ variant: "destructive", title: t.speechErrorToastTitle, description: t.speechErrorToastDescription(errorMsgForToast) });
+            toast({ variant: "destructive", title: t.speechErrorToastTitle, description: t.speechErrorToastDescription(errorMsgForToast) });
           }
           setIsRecording(false);
         };
-        
+
         recognitionInstance.onend = () => {
           setIsRecording(false);
         };
@@ -187,13 +181,13 @@ export function NarrativeDisplay({
         setMicPermissionError(t.voiceInputNotReadyToastDescription("Speech recognition API not found in browser."));
       }
     } else {
-       setMicPermissionError(t.voiceInputNotReadyToastDescription("Speech recognition not available in this environment."));
+      setMicPermissionError(t.voiceInputNotReadyToastDescription("Speech recognition not available in this environment."));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toast, currentGlobalLanguage, t]);
 
   const handleToggleRecording = () => {
-     if (!speechRecognition) {
+    if (!speechRecognition) {
       toast({ variant: "destructive", title: t.voiceInputNotReadyToastTitle, description: t.voiceInputNotReadyToastDescription(micPermissionError || "Speech recognition is not available.") });
       return;
     }
@@ -206,14 +200,14 @@ export function NarrativeDisplay({
       setTranscribedQuestion("");
       try {
         if (speechRecognition.lang !== (currentGlobalLanguage || 'en-US')) {
-            speechRecognition.lang = currentGlobalLanguage || 'en-US';
+          speechRecognition.lang = currentGlobalLanguage || 'en-US';
         }
         speechRecognition.start();
         setIsRecording(true);
       } catch (e: any) {
-         console.error("Error starting speech recognition:", e);
-         toast({ variant: "destructive", title: t.couldNotStartRecordingToastTitle, description: t.couldNotStartRecordingToastDescription(e.message) });
-         setIsRecording(false);
+        console.error("Error starting speech recognition:", e);
+        toast({ variant: "destructive", title: t.couldNotStartRecordingToastTitle, description: t.couldNotStartRecordingToastDescription(e.message) });
+        setIsRecording(false);
       }
     }
   };
@@ -225,12 +219,11 @@ export function NarrativeDisplay({
       return;
     }
     if (!userId) {
-       toast({ variant: "destructive", title: "User ID Missing", description: "Cannot process follow-up without a User ID." });
+      toast({ variant: "destructive", title: "User ID Missing", description: "Cannot process follow-up without a User ID." });
       return;
     }
 
     setIsGeneratingFollowUp(true);
-    // setActiveTypingMessageId(null); // Stop any previous AI typing
 
     const userMessageId = `user-${Date.now()}`;
     const userMessage: ChatMessage = {
@@ -240,18 +233,16 @@ export function NarrativeDisplay({
       timestamp: new Date(),
     };
     setChatHistory(prev => [...prev, userMessage]);
-    setTranscribedQuestion(""); 
+    setTranscribedQuestion("");
 
-    // Find the original narrative text for context
     const initialNarrativeMessage = chatHistory.find(msg => msg.id.startsWith('ai-initial'));
     const contextNarrative = initialNarrativeMessage ? initialNarrativeMessage.text : narrativeText;
 
-
     const actionInput: FollowUpServerInput = {
-      currentNarrativeText: contextNarrative, 
+      currentNarrativeText: contextNarrative,
       locationDescription: locationDescription,
       userQuestion: trimmedQuestion,
-      language: outputLanguage, // Use outputLanguage from props for consistency
+      language: outputLanguage,
       informationStyle: informationStyle,
       userId: userId,
       latitude: latitude,
@@ -299,33 +290,32 @@ export function NarrativeDisplay({
               <MapPin className="h-4 w-4 text-accent" />
               {t.identifiedLocationLabel}
             </h3>
-            <p className="text-xs text-foreground pl-6">{locationDescription}</p>
+            <p className="text-xs text-foreground pl-6 break-words">{locationDescription}</p>
           </div>
         )}
-         {/* Initial Audio Player - separated for clarity */}
         {chatHistory.some(msg => msg.id.startsWith('ai-initial') && msg.audioDataUri) && (
-            <>
+          <>
             <Separator />
             <div>
-                <h3 className="font-semibold mb-1 flex items-center gap-2 text-sm pt-1">
-                    <Volume2 className="h-4 w-4 text-secondary" />
-                    {t.audioNarrationLabel} ({t.initialNarrativeLabel})
-                </h3>
-                <audio ref={initialAudioRef} controls src={chatHistory.find(msg => msg.id.startsWith('ai-initial'))?.audioDataUri} className="w-full">
-                    {t.audioNotSupported}
-                </audio>
+              <h3 className="font-semibold mb-1 flex items-center gap-2 text-sm pt-1">
+                <Volume2 className="h-4 w-4 text-secondary" />
+                {t.audioNarrationLabel} ({t.initialNarrativeLabel})
+              </h3>
+              <audio ref={initialAudioRef} controls src={chatHistory.find(msg => msg.id.startsWith('ai-initial'))?.audioDataUri} className="w-full">
+                {t.audioNotSupported}
+              </audio>
             </div>
-            </>
+          </>
         )}
         {!chatHistory.some(msg => msg.id.startsWith('ai-initial') && msg.audioDataUri) && narrativeText && (
-             <>
+          <>
             <Separator />
-             <Alert variant="default" className="bg-muted/50 mt-1 text-xs py-2">
-                <Info className="h-3 w-3" />
-                <AlertTitle className="text-xs">{t.audioUnavailableTitle}</AlertTitle>
-                <AlertDescription className="text-xs">{t.audioUnavailableDescription}</AlertDescription>
+            <Alert variant="default" className="bg-muted/50 mt-1 text-xs py-2">
+              <Info className="h-3 w-3" />
+              <AlertTitle className="text-xs">{t.audioUnavailableTitle}</AlertTitle>
+              <AlertDescription className="text-xs">{t.audioUnavailableDescription}</AlertDescription>
             </Alert>
-            </>
+          </>
         )}
       </CardContent>
 
@@ -336,16 +326,14 @@ export function NarrativeDisplay({
           {chatHistory.map((message) => (
             <div
               key={message.id}
-              className={`flex flex-col ${
-                message.sender === 'user' ? 'items-end' : 'items-start'
-              }`}
+              className={`flex flex-col ${message.sender === 'user' ? 'items-end' : 'items-start'
+                }`}
             >
               <div
-                className={`max-w-[85%] p-3 rounded-xl shadow-sm ${ // reduced shadow
-                  message.sender === 'user'
+                className={`max-w-[85%] p-3 rounded-xl shadow-sm ${message.sender === 'user'
                     ? 'bg-primary text-primary-foreground rounded-br-none'
                     : 'bg-card text-card-foreground rounded-bl-none border'
-                }`}
+                  }`}
               >
                 <p className="text-sm whitespace-pre-wrap break-words">
                   {activeTypingMessageId === message.id
@@ -355,32 +343,31 @@ export function NarrativeDisplay({
                 </p>
               </div>
               {message.sender === 'ai' && message.audioDataUri && activeTypingMessageId !== message.id && message.text.trim() !== "" && (
-                 <audio
-                    ref={(el) => { audioRefs.current[message.id] = el; }}
-                    controls
-                    src={message.audioDataUri}
-                    className="w-full max-w-[250px] mt-2 ml-0 sm:ml-2 self-start h-8" // smaller audio player
+                <audio
+                  ref={(el) => { audioRefs.current[message.id] = el; }}
+                  controls
+                  src={message.audioDataUri}
+                  className="w-full max-w-[250px] mt-2 ml-0 sm:ml-2 self-start h-8"
                 >
-                    {t.audioNotSupported}
+                  {t.audioNotSupported}
                 </audio>
               )}
-               <p className={`text-xs mt-1 px-1 ${message.sender === 'user' ? 'text-muted-foreground/80 self-end' : 'text-muted-foreground/80 self-start'}`}>
-                {message.sender === 'user' ? <User className="inline h-3 w-3 mr-1"/> : <BotMessageSquare className="inline h-3 w-3 mr-1 text-primary"/>}
-                {/* {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} */}
+              <p className={`text-xs mt-1 px-1 ${message.sender === 'user' ? 'text-muted-foreground/80 self-end' : 'text-muted-foreground/80 self-start'}`}>
+                {message.sender === 'user' ? <User className="inline h-3 w-3 mr-1" /> : <BotMessageSquare className="inline h-3 w-3 mr-1 text-primary" />}
               </p>
             </div>
           ))}
           <div ref={chatEndRef} />
         </div>
-         {!narrativeText && !chatHistory.length && (
-            <div className="text-center text-muted-foreground py-8">
-                <BotMessageSquare className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-                <p>{t.startConversationPlaceholder}</p>
-            </div>
+        {!chatHistory.length && (
+          <div className="text-center text-muted-foreground py-8">
+            <BotMessageSquare className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+            <p>{t.startConversationPlaceholder}</p>
+          </div>
         )}
       </ScrollArea>
-      
-      {chatHistory.length > 0 && ( // Show input only if a conversation has started
+
+      {chatHistory.length > 0 && (
         <>
           <Separator />
           <div className="p-3 border-t space-y-2 bg-muted/50">
@@ -407,7 +394,7 @@ export function NarrativeDisplay({
                 disabled={isRecording || isGeneratingFollowUp}
               />
               <Button
-                variant="ghost" // Changed to ghost for less emphasis
+                variant="ghost"
                 size="icon"
                 onClick={handleToggleRecording}
                 disabled={!speechRecognition || isGeneratingFollowUp}
@@ -416,27 +403,33 @@ export function NarrativeDisplay({
               >
                 <Mic className="h-5 w-5" />
               </Button>
-              <Button 
-                onClick={() => handleFollowUpSubmit(transcribedQuestion)} 
+              <Button
+                onClick={() => handleFollowUpSubmit(transcribedQuestion)}
                 disabled={isGeneratingFollowUp || isRecording || !transcribedQuestion.trim() || !userId}
-                className="shrink-0 rounded-full" // Make submit button icon size too
+                className="shrink-0 rounded-full"
                 size="icon"
                 aria-label={t.submitQuestionButton}
               >
-                <Send className="h-5 w-5" /> 
+                <Send className="h-5 w-5" />
               </Button>
             </div>
             {isGeneratingFollowUp && (
               <div className="flex items-center justify-center pt-1">
-                  <BotMessageSquare className="h-4 w-4 animate-pulse text-primary mr-1.5" />
-                  <p className="text-xs text-muted-foreground">{t.aiThinking}</p>
+                <BotMessageSquare className="h-4 w-4 animate-pulse text-primary mr-1.5" />
+                <p className="text-xs text-muted-foreground">{t.aiThinking}</p>
               </div>
             )}
           </div>
         </>
       )}
-      <CardFooter className="py-2 text-xs text-muted-foreground border-t">
-        {t.narrativeDisplayFooterWebhook}
+      <CardFooter className="py-3 border-t flex-col items-start gap-2 bg-muted/30">
+         <p className="text-xs text-muted-foreground">
+          {t.narrativeDisplayFooterWebhook}
+        </p>
+        <Button variant="outline" size="sm" onClick={onExploreNewLocation} className="w-full sm:w-auto self-end">
+          <Compass className="h-4 w-4 mr-2" />
+          {t.exploreNewLocationButton}
+        </Button>
       </CardFooter>
     </Card>
   );
