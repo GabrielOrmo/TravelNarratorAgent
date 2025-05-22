@@ -5,14 +5,14 @@ import { generateImageDescription } from "@/ai/flows/image-to-description-flow";
 import type { GenerateImageDescriptionOutput } from "@/ai/flows/image-to-description-flow";
 import { narrationToAudio } from "@/ai/flows/narration-to-audio"; 
 import type { NarrationToAudioOutput } from "@/ai/flows/narration-to-audio";
-import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators";
+import { narratorFormSchema, type NarratorFormValues } from "@/lib/validators"; // Ensure NarratorFormValues includes outputLanguage if used from form
 import { Client } from "@googlemaps/google-maps-services-js";
 
 export interface TravelNarrativeResult {
   narrativeText: string;
   audioDataUri: string; 
   locationDescription: string;
-  outputLanguage: string;
+  outputLanguage: string; // This should be the language used for generation
   informationStyle: string; 
   userId: string; 
   latitude?: number | null; 
@@ -23,7 +23,7 @@ const WEBHOOK_URL = "https://n8n-mayia-test-u42339.vm.elestio.app/webhook/a21f3f
 
 export async function generateTravelNarrativeAction(
   rawValues: NarratorFormValues,
-  language: string, 
+  language: string, // This is the globally selected language
   userId: string,
   latitude?: number | null,
   longitude?: number | null
@@ -56,12 +56,10 @@ export async function generateTravelNarrativeAction(
     } else if (locationQuery) {
       identifiedLocationDescription = locationQuery;
     } else {
-      // This case should ideally be caught by schema validation refine,
-      // but as a safeguard:
       return { error: "Please provide either a location search term or an image." };
     }
 
-    const effectiveOutputLanguage = language; 
+    const effectiveOutputLanguage = language; // Use the globally selected language
 
     let narrativeTextFromWebhook: string;
     try {
@@ -95,17 +93,20 @@ export async function generateTravelNarrativeAction(
     }
 
     let audioDataUriForResult = "";
-    if (narrativeTextFromWebhook) {
+    if (narrativeTextFromWebhook && narrativeTextFromWebhook.trim() !== "") {
+      console.log("Attempting to generate audio for main narrative. Language:", effectiveOutputLanguage);
       const audioResult: NarrationToAudioOutput = await narrationToAudio({
         narratedText: narrativeTextFromWebhook,
         voice: effectiveOutputLanguage, 
       });
       if (audioResult.audioDataUri) {
         audioDataUriForResult = audioResult.audioDataUri;
+        console.log("Audio generated successfully for main narrative.");
       } else {
-        console.warn("Failed to generate audio for the main narrative. Proceeding without audio.");
-        // Optionally, you could return a specific user-facing message here or in the component
+        console.warn("Failed to generate audio for the main narrative (narrationToAudio returned empty). Text was:", narrativeTextFromWebhook.substring(0,100) + "...");
       }
+    } else {
+      console.warn("Skipping audio generation for main narrative: Webhook response text is empty.");
     }
 
 
@@ -131,10 +132,10 @@ export async function generateTravelNarrativeAction(
 }
 
 export interface FollowUpServerInput {
-  currentNarrativeText: string;
+  currentNarrativeText: string; // No longer used for X-Current-Narrative header
   locationDescription: string;
   userQuestion: string;
-  language: string; // This is the target output language
+  language: string; // This is the target output language from global context
   informationStyle: string; 
   userId: string; 
   latitude?: number | null; 
@@ -163,14 +164,14 @@ export async function generateFollowUpAnswerAction(
         'Style': input.informationStyle,
         'Prompt': input.userQuestion, 
         'X-User-ID': input.userId, 
-        'X-Output-Language': input.language, // Use the passed language
+        'X-Output-Language': input.language, 
         'X-Latitude': input.latitude?.toString() || '',
         'X-Longitude': input.longitude?.toString() || '',
         'Follow-Up': "true", 
-        // 'X-Current-Narrative': input.currentNarrativeText, // Removed as per user request
         'X-Location-Context': input.locationDescription, 
       };
       
+      console.log("Calling follow-up webhook with headers:", headers);
       const webhookResponse = await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: headers,
@@ -185,23 +186,28 @@ export async function generateFollowUpAnswerAction(
       if (!answerTextFromWebhook) {
         return { error: "Agent returned an empty follow-up answer." };
       }
+      console.log("Follow-up answer from webhook:", answerTextFromWebhook.substring(0,100) + "...");
     } catch (fetchError) {
       console.error("Error calling webhook for follow-up:", fetchError);
       return { error: `Error contacting the agent for follow-up: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}` };
     }
 
     let audioDataUriForResult = "";
-    if(answerTextFromWebhook) {
+    if(answerTextFromWebhook && answerTextFromWebhook.trim() !== "") {
+      console.log("Attempting to generate audio for follow-up. Language:", input.language);
       const audioResult: NarrationToAudioOutput = await narrationToAudio({
         narratedText: answerTextFromWebhook,
-        voice: input.language, // Use the passed language for TTS
+        voice: input.language, 
       });
 
       if (audioResult.audioDataUri) {
         audioDataUriForResult = audioResult.audioDataUri;
+        console.log("Audio generated successfully for follow-up.");
       } else {
-         console.warn("Failed to generate audio for the follow-up answer. Proceeding without audio for follow-up.");
+         console.warn("Failed to generate audio for the follow-up answer (narrationToAudio returned empty). Text was:", answerTextFromWebhook.substring(0,100) + "...");
       }
+    } else {
+       console.warn("Skipping audio generation for follow-up: Webhook response text is empty.");
     }
 
 
@@ -233,7 +239,7 @@ export async function getPlaceAutocompleteSuggestions(
     return { error: "Autocomplete service is not configured." };
   }
   if (!query || query.trim().length < 2) {
-    return []; // Don't search for very short queries
+    return []; 
   }
 
   const client = new Client({});
@@ -242,9 +248,8 @@ export async function getPlaceAutocompleteSuggestions(
       params: {
         input: query,
         key: process.env.GOOGLE_MAPS_API_KEY,
-        // You can add more parameters here, like 'types', 'components' for filtering
       },
-      timeout: 5000, // milliseconds
+      timeout: 5000, 
     });
 
     if (response.data.status === "OK") {

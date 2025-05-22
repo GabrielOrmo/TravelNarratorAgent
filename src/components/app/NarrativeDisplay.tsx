@@ -246,7 +246,7 @@ export function NarrativeDisplay({
         <div>
           <h3 className="font-semibold mb-2">{t.narrativeTextLabel}</h3>
           <ScrollArea className="min-h-[6rem] max-h-80 w-full rounded-md border p-4 bg-background">
-            <p className="text-sm whitespace-pre-wrap">{narrativeText || t.noNarrativeText}</p>
+            <p className="text-sm whitespace-pre-wrap break-words">{narrativeText || t.noNarrativeText}</p>
           </ScrollArea>
         </div>
         
@@ -318,7 +318,7 @@ export function NarrativeDisplay({
                         </audio>
                       )}
                     <ScrollArea className="min-h-[4rem] max-h-60 w-full rounded-md border bg-background p-3">
-                      <p className="text-sm whitespace-pre-wrap">{followUpResult.answerText}</p>
+                      <p className="text-sm whitespace-pre-wrap break-words">{followUpResult.answerText}</p>
                     </ScrollArea>
                   </div>
                 </div>
